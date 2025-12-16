@@ -1,0 +1,2 @@
+Age,Gender,Weight (kg),Height (m),BMI,Workout_Frequency (days/week),Daily meals frequency,diet_type,Experience_Level,Goal,WeightChange (kg),GoalDays,BMR,PAL,TDEE,CalorieChange,CloriesToBurnTraining,CloriesReducedFromFood,CaloriesPerDay,TotalWorkouts,CaloriesPerWorkout,Meal_target,Cluster
+38,Female,100,1.7,34.602076124567475,3,2,Low-Carb,2,Loss,5,30,1711.5,1.725,2952.3375,38500,19250.0,19250.0,2310.670833333333,13.0,1480.7692307692307,1155.3354166666666,0
