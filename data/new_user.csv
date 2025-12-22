@@ -1,2 +1,2 @@
-Age,Gender,Weight (kg),Height (m),BMI,Workout_Frequency (days/week),Daily meals frequency,diet_type,Experience_Level,Goal,WeightChange (kg),GoalDays,BMR,PAL,TDEE,CalorieChange,CaloriesToBurnTraining,CaloriesReducedFromFood,CaloriesPerDay,TotalWorkouts,CaloriesPerWorkout
-34,Male,130.0,2.05,30.93396787626413,3,3,Keto,2,Loss,5.0,30,2416.25,1.7249999999999999,4168.03125,38500.0,19250.0,19250.0,3526.3645833333335,12.857142857142858,1497.2222222222222
+Age,Gender,Weight (kg),Height (m),BMI,Workout_Frequency (days/week),Daily meals frequency,diet_type,Experience_Level,Goal,WeightChange (kg),GoalDays,BMR,PAL,TDEE,CalorieChange,CaloriesToBurnTraining,CaloriesReducedFromFood,CaloriesPerDay,TotalWorkouts,CaloriesPerWorkout,cluster_id
+22,Male,88.0,1.8,27.160493827160494,2,2,Keto,2,Maintain,2.0,20,1900.0,1.5499999999999998,2944.9999999999995,15400.0,7700.0,7700.0,2944.9999999999995,5.714285714285714,1347.5,0

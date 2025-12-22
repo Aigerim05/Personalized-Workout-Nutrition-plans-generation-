@@ -7,6 +7,7 @@ def main() -> None:
 
     df = create_user_features(df)               # add BMR/TDEE/etc
     df = predict_cluster_id(df)                 # add cluster_id (+ scaled cols)
+    df.to_csv('data/new_user.csv', index=False)
 
 
 if __name__ == "__main__":
