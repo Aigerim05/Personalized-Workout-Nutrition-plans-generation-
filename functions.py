@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from joblib import load
 
+
 GENDER_MAP = {1: "Female", 2: "Male"}
 
 EXPERIENCE_MAP = {
@@ -124,10 +125,10 @@ def collect_new_user() -> dict:
         "Weight (kg)": weight_kg,
         "Height (m)": height_m,
         "BMI": bmi,
+        "Experience_Level": exp_choice,
         "Workout_Frequency (days/week)": workout_freq,
         "Daily meals frequency": meals_freq,
         "diet_type": DIET_MAP[diet_choice],
-        "Experience_Level": exp_choice,
 
         "Goal": GOAL_MAP[goal_choice],
         "WeightChange (kg)": weight_change,
@@ -143,15 +144,85 @@ def save_user_to_csv(user_data: dict, output_path: str = "data/new_user.csv") ->
     df_new.to_csv(output_path, index=False)
     print(f"Data saved to {output_path}")
 
+# Predicts cluster_id for the dataframe and adds the column cluster_id to dataframe
+# This same function is used for the new_user dataframe containing only one row of new user
 
-def create_user_features(df: pd.DataFrame) -> pd.DataFrame:
+def predict_cluster_id(
+    user_df: pd.DataFrame,
+    artifacts_path: str = "models/kmeans_user_cluster.joblib",
+    inplace: bool = False
+) -> pd.DataFrame:
     """
-    Add user-level features from the screenshot:
+    Takes a DataFrame with 1 or more rows containing the ORIGINAL input columns
+    (same names as training), predicts cluster IDs using saved KMeans + scaling stats,
+    and returns the original df with an added 'cluster_id' column only.
+    """
+
+    if not isinstance(user_df, pd.DataFrame):
+        raise TypeError("user_df must be a pandas DataFrame.")
+
+    if len(user_df) == 0:
+        raise ValueError("user_df must contain at least 1 row.")
+
+    # --- load artifacts ---
+    artifacts = load(artifacts_path)
+    kmeans = artifacts["kmeans"]
+    numeric_cols = artifacts["numeric_cols"]
+    mean_dict = artifacts["mean_dict"]
+    std_dict = artifacts["std_dict"]
+    features_no_diet = artifacts["features_no_diet"]
+
+    # this is what we return
+    df_out = user_df if inplace else user_df.copy()
+
+    # --- create TEMP dataframe for model input ---
+    df_tmp = df_out.copy()
+
+    # --- scale numeric columns into temporary *_scaled columns ---
+    for col in numeric_cols:
+        if col not in df_tmp.columns:
+            raise KeyError(f"Missing required numeric column: '{col}'")
+
+        df_tmp[col] = pd.to_numeric(df_tmp[col], errors="raise")
+
+        mu = mean_dict[col]
+        std = std_dict[col]
+
+        if std == 0 or pd.isna(std):
+            df_tmp[col + "_scaled"] = 0.0
+        else:
+            df_tmp[col + "_scaled"] = (df_tmp[col] - mu) / std
+
+    # --- validate final model features ---
+    missing_features = [c for c in features_no_diet if c not in df_tmp.columns]
+    if missing_features:
+        raise KeyError(
+            "Missing required feature columns for prediction: "
+            + ", ".join(missing_features)
+        )
+
+    # --- build model input ---
+    X = df_tmp[features_no_diet].values
+
+    # --- predict ---
+    cluster_ids = kmeans.predict(X)
+
+    # --- attach ONLY the result ---
+    df_out["cluster_id"] = cluster_ids
+
+    return df_out
+
+
+def create_user_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add to df the following
+    
+    user-level features:
     - BMR (Mifflin-St Jeor)
     - PAL = 1.2 + 0.175 * Workout_Frequency
     - TDEE = BMR * PAL
 
-    Goal / calorie plan features (as in screenshot):
+    Goal / calorie plan features:
     - CalorieChange = WeightChange * 7700
     - CaloriesToBurnTraining = CalorieChange * 0.5
     - CaloriesReducedFromFood = CalorieChange * 0.5
@@ -159,11 +230,13 @@ def create_user_features(df: pd.DataFrame) -> pd.DataFrame:
     - TotalWorkouts = Workout_Frequency * GoalDays / 7
     - CaloriesPerWorkout = CaloriesToBurnTraining / TotalWorkouts
 
-    Expected columns:
-    Age, Gender, Weight (kg), Height (m), Workout_Frequency (days/week),
-    WeightChange (kg), GoalDays, Goal  (Goal in {"Loss","Maintain","Gain"})
+    Expected columns from new_user:
+    Age, Gender, Weight (kg), Height (m), BMI, Workout_Frequency (days/week),
+    WeightChange (kg), GoalDays, Goal ({"Loss","Maintain","Gain"})
     """
     out = df.copy()
+
+    out = out.drop(columns=["Workout_Frequency (days/week)"]) # drop "Workout_Frequency (days/week)" as we use the "Workout_Frequency (days/week)" from new_user
 
     # Basic fields
     weight = out["Weight (kg)"].astype(float)
@@ -173,49 +246,38 @@ def create_user_features(df: pd.DataFrame) -> pd.DataFrame:
     # Gender: detect male vs female
     is_male = out["Gender"].astype(str).str.lower().str.startswith("m")
 
-    # BMR (Mifflin-St Jeor)
+    # BMR 
     bmr_male = 10 * weight + 6.25 * height_cm - 5 * age + 5
     bmr_female = 10 * weight + 6.25 * height_cm - 5 * age - 161
     out["BMR"] = np.where(is_male, bmr_male, bmr_female)
 
     # PAL and TDEE
-    out["PAL"] = 1.2 + 0.175 * out["Workout_Frequency (days/week)"].astype(float)
+    wf = float(new_user["Workout_Frequency (days/week)"].iloc[0])
+    out["PAL"] = 1.2 + 0.175 * wf
     out["TDEE"] = out["BMR"] * out["PAL"]
 
-    # --- Goal calorie calculations (screenshot logic) ---
-    goal = out["Goal"].astype(str).str.strip().str.lower()
-    goal_days = out["GoalDays"].astype(float)
+    goal = str(new_user["Goal"].iloc[0]).strip()
+    goal_days = float(new_user["GoalDays"].iloc[0])
+    weight_change_kg = float(abs(new_user["WeightChange (kg)"].iloc[0]))
 
-    # WeightChange: treat as magnitude (kg to change), direction comes from Goal
-    weight_change_kg = out["WeightChange (kg)"].astype(float).abs()
-
-    # CalorieChange = WeightChange * 7700  (total calories over the goal period)
     out["CalorieChange"] = weight_change_kg * 7700.0
-
-    # Split 50/50 between training burn and food reduction 
     out["CaloriesToBurnTraining"] = out["CalorieChange"] * 0.5
     out["CaloriesReducedFromFood"] = out["CalorieChange"] * 0.5
 
-    # CaloriesPerDay = TDEE +/- (CaloriesReducedFromFood / GoalDays)
-    # - Loss: eat less than TDEE (subtract)
-    # - Gain: eat more than TDEE (add)
-    # - Maintain: no change
-    daily_delta = np.where(goal_days > 0, out["CaloriesReducedFromFood"] / goal_days, np.nan)
+    daily_delta = (out["CaloriesReducedFromFood"] / goal_days) if goal_days > 0 else np.nan
 
-    out["CaloriesPerDay"] = out["TDEE"]  # default (Maintain)
-    out.loc[goal == "loss", "CaloriesPerDay"] = out.loc[goal == "loss", "TDEE"] - daily_delta[goal == "loss"]
-    out.loc[goal == "gain", "CaloriesPerDay"] = out.loc[goal == "gain", "TDEE"] + daily_delta[goal == "gain"]
+    out["CaloriesPerDay"] = out["TDEE"]
+    if goal == "Loss":
+        out["CaloriesPerDay"] = out["TDEE"] - daily_delta
+    elif goal == "Gain":
+        out["CaloriesPerDay"] = out["TDEE"] + daily_delta
 
-    # TotalWorkouts = Workout_Frequency * GoalDays / 7
-    out["TotalWorkouts"] = out["Workout_Frequency (days/week)"].astype(float) * (goal_days / 7.0)
-
-    # CaloriesPerWorkout = CaloriesToBurnTraining / TotalWorkouts
-    # Avoid division by zero if TotalWorkouts is 0
-    out["CaloriesPerWorkout"] = np.where(
-        out["TotalWorkouts"] > 0,
-        out["CaloriesToBurnTraining"] / out["TotalWorkouts"],
-        0.0
+    out["TotalWorkouts"] = wf * (goal_days / 7.0)
+    out["CaloriesPerWorkout"] = (
+        out["CaloriesToBurnTraining"] / out["TotalWorkouts"]
+        if out["TotalWorkouts"].iloc[0] > 0 else 0.0
     )
+
 
     return out
 
@@ -290,140 +352,78 @@ def create_workout_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 
-def create_meal_features(df: pd.DataFrame) -> pd.DataFrame:
+def create_meal_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFrame:
     """
     Create meal features:
 
-    C – Calorie Fit (how well the meal matches the target calorie intake)
-    P – Protein per meal
-    M – Macro Match (how closely the macronutrient ratios align with target proportions)
-    ED– Energy Density (kcal per gram)
-    F – Food Safety (based on sugar, sodium, and cholesterol levels)
+    C  – Calorie Fit
+    P  – Protein per meal
+    M  – Macro Match
+    ED – Energy Density
+    F  – Food Safety
     """
     out = df.copy()
 
-    # --- C: Calorie Fit --- пока не понятно что с ним делать, надо формулу поменять, просто рандомное значение 100 поставила
-    
-    out["C"] = 100
-
+    # --- C: Calorie Fit ---
+    meal_target = new_user["Meal_target"].iloc[0]
+    out["C"] = 1 - (
+        (out["Calories"] / out["Daily meals frequency"] - meal_target).abs()
+        / meal_target
+    )
 
     # --- P: Proteins per meal ---
     P = out["Proteins"] / out["Daily meals frequency"]
     out["P"] = (P - P.min()) / (P.max() - P.min())
 
-    # --- M: MacroMatch ---
-    # пересчитываем БЖУ в калории
+    # --- M: Macro Match ---
     out["cal_from_protein"] = out["Proteins"] * 4
     out["cal_from_carbs"] = out["Carbs"] * 4
     out["cal_from_fats"] = out["Fats"] * 9
 
     total_macro_cal = (
-        out["cal_from_protein"] +
-        out["cal_from_carbs"] +
-        out["cal_from_fats"]
+        out["cal_from_protein"]
+        + out["cal_from_carbs"]
+        + out["cal_from_fats"]
     ).replace(0, np.nan)
 
     out["pct_p"] = out["cal_from_protein"] / total_macro_cal
     out["pct_c"] = out["cal_from_carbs"] / total_macro_cal
     out["pct_f"] = out["cal_from_fats"] / total_macro_cal
 
-    # if new_user['Goal'].iloc[0] == 'Loss':
-    #     target_p, target_c, target_f = 0.3, 0.35, 0.35
-    # elif new_user['Goal'].iloc[0] == 'Maintain':
-    #     target_p, target_c, target_f = 0.2, 0.5, 0.3
-    # elif new_user['Goal'].iloc[0] == 'Gain':
-    #     target_p, target_c, target_f = 0.25, 0.55, 0.2
+    goal = new_user["Goal"].iloc[0]
+    if goal == "Loss":
+        target_p, target_c, target_f = 0.3, 0.35, 0.35
+    elif goal == "Maintain":
+        target_p, target_c, target_f = 0.2, 0.5, 0.3
+    elif goal == "Gain":
+        target_p, target_c, target_f = 0.25, 0.55, 0.2
+    else:
+        raise ValueError(f"Unknown goal: {goal}")
 
-
-    # тут тоже рандомные значени 0.5, пока не понятно что делать
-    out["M"] = 0.5
+    out["M"] = 1 - (1 / 3) * (
+        (out["pct_p"] - target_p).abs() / target_p
+        + (out["pct_c"] - target_c).abs() / target_c
+        + (out["pct_f"] - target_f).abs() / target_f
+    )
 
     # --- ED: Energy Density ---
-    ED = out["Calories"] / (out["serving_size_g"] * out['Daily meals frequency'])
+    ED = out["Calories"] / (out["serving_size_g"] * out["Daily meals frequency"])
     out["ED"] = (ED - ED.min()) / (ED.max() - ED.min())
 
     # --- F: Food Safety ---
     sugar_90 = out["sugar_g"].quantile(0.9)
     sodium_90 = out["sodium_g"].quantile(0.9)
-    chol_90   = out["cholesterol_g"].quantile(0.9)
+    chol_90 = out["cholesterol_g"].quantile(0.9)
 
-    out["F"] = 1 - (1/3) * (
-        (out["sugar_g"] / sugar_90).clip(upper=1) +
-        (out["sodium_g"] / sodium_90).clip(upper=1) +
-        (out["cholesterol_g"] / chol_90).clip(upper=1)
+    out["F"] = 1 - (1 / 3) * (
+        (out["sugar_g"] / sugar_90).clip(upper=1)
+        + (out["sodium_g"] / sodium_90).clip(upper=1)
+        + (out["cholesterol_g"] / chol_90).clip(upper=1)
     )
 
     return out
 
 
-# Predicts cluster_id for the dataframe and adds the column cluster_id to dataframe
-# This same function is used for the new_user dataframe containing only one row of new user
-import pandas as pd
-from joblib import load
 
 
-def predict_cluster_id(
-    user_df: pd.DataFrame,
-    artifacts_path: str = "models/kmeans_user_cluster.joblib",
-    inplace: bool = False
-) -> pd.DataFrame:
-    """
-    Takes a DataFrame with 1 or more rows containing the ORIGINAL input columns
-    (same names as training), predicts cluster IDs using saved KMeans + scaling stats,
-    and returns the original df with an added 'cluster_id' column only.
-    """
-
-    if not isinstance(user_df, pd.DataFrame):
-        raise TypeError("user_df must be a pandas DataFrame.")
-
-    if len(user_df) == 0:
-        raise ValueError("user_df must contain at least 1 row.")
-
-    # --- load artifacts ---
-    artifacts = load(artifacts_path)
-    kmeans = artifacts["kmeans"]
-    numeric_cols = artifacts["numeric_cols"]
-    mean_dict = artifacts["mean_dict"]
-    std_dict = artifacts["std_dict"]
-    features_no_diet = artifacts["features_no_diet"]
-
-    # this is what we return
-    df_out = user_df if inplace else user_df.copy()
-
-    # --- create TEMP dataframe for model input ---
-    df_tmp = df_out.copy()
-
-    # --- scale numeric columns into temporary *_scaled columns ---
-    for col in numeric_cols:
-        if col not in df_tmp.columns:
-            raise KeyError(f"Missing required numeric column: '{col}'")
-
-        df_tmp[col] = pd.to_numeric(df_tmp[col], errors="raise")
-
-        mu = mean_dict[col]
-        std = std_dict[col]
-
-        if std == 0 or pd.isna(std):
-            df_tmp[col + "_scaled"] = 0.0
-        else:
-            df_tmp[col + "_scaled"] = (df_tmp[col] - mu) / std
-
-    # --- validate final model features ---
-    missing_features = [c for c in features_no_diet if c not in df_tmp.columns]
-    if missing_features:
-        raise KeyError(
-            "Missing required feature columns for prediction: "
-            + ", ".join(missing_features)
-        )
-
-    # --- build model input ---
-    X = df_tmp[features_no_diet].values
-
-    # --- predict ---
-    cluster_ids = kmeans.predict(X)
-
-    # --- attach ONLY the result ---
-    df_out["cluster_id"] = cluster_ids
-
-    return df_out
 
