@@ -379,7 +379,9 @@ def create_meal_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
     out = out.drop(columns=['cooking_method', 'diet_type', 'meal_type'])
 
     # --- C: Calorie Fit ---
-    meal_target = new_user["Meal_target"].iloc[0]
+    calories_per_day = float(new_user["CaloriesPerDay"].iloc[0])
+    meal_target = calories_per_day / out["Daily meals frequency"].astype(float)
+
     out["C"] = 1 - (
         (out["Calories"] / out["Daily meals frequency"] - meal_target).abs()
         / meal_target
@@ -435,6 +437,14 @@ def create_meal_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
         + (out["cholesterol_g"] / chol_90).clip(upper=1)
     )
 
+    out = out.drop(columns=["Weight (kg)", "Height (m)", "BMI", "Calories_Burned", "Workout_Frequency (days)", "cholesterol_g", 
+                            "sodium_g", "sugar_g", "Proteins", "Carbs", "Fats", "Calories", "Daily meals frequency", "Proteins", "serving_size_g"]) # drop these features to avoid data leakage
+    out = out.drop(columns=["CalorieChange", "CaloriesToBurnTraining", "CaloriesReducedFromFood", "CaloriesPerDay", "CaloriesPerWorkout", 
+                            "TotalWorkouts", "pct_p", "pct_c", "pct_f", "BMR", "PAL", "TDEE", "cal_from_protein", "cal_from_carbs", "cal_from_fats"]) # drop these helper features
+    out = out.drop(columns=["CalorieChange", "CaloriesToBurnTraining", "CaloriesReducedFromFood", "CaloriesPerDay", "CaloriesPerWorkout", 
+                            "TotalWorkouts", "pct_p", "pct_c", "pct_f", "BMR", "PAL", "TDEE", "cal_from_protein", "cal_from_carbs", "cal_from_fats"]) # drop these helper features
+    
+    
     return out
 
 
