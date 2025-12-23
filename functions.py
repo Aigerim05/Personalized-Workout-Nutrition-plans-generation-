@@ -107,7 +107,7 @@ def collect_new_user() -> dict:
     weight_kg = _ask_float("Weight (kg): ", min_val=20, max_val=400)
     height_m = _ask_float("Height (m): ", min_val=0.8, max_val=2.5)
 
-    workout_freq = _ask_int("Workout Frequency (days/week): ", min_val=0, max_val=14)
+    workout_freq = _ask_int("Workout Frequency (days): ", min_val=0, max_val=7)
     meals_freq = _ask_int("Daily meals frequency: ", min_val=1, max_val=10)
 
     weight_change = _ask_float(
@@ -126,7 +126,7 @@ def collect_new_user() -> dict:
         "Height (m)": height_m,
         "BMI": bmi,
         "Experience_Level": exp_choice,
-        "Workout_Frequency (days/week)": workout_freq,
+        "Workout_Frequency (days)": workout_freq,
         "Daily meals frequency": meals_freq,
         "diet_type": DIET_MAP[diet_choice],
 
@@ -235,9 +235,7 @@ def create_user_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
     WeightChange (kg), GoalDays, Goal ({"Loss","Maintain","Gain"})
     """
     out = df.copy()
-
-    out = out.drop(columns=["Workout_Frequency (days/week)"]) # drop "Workout_Frequency (days/week)" as we use the "Workout_Frequency (days/week)" from new_user
-
+    out = df.drop(columns=["Water_Intake (liters)"])
     # Basic fields
     weight = out["Weight (kg)"].astype(float)
     height_cm = (out["Height (m)"].astype(float) * 100.0)
@@ -252,7 +250,7 @@ def create_user_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
     out["BMR"] = np.where(is_male, bmr_male, bmr_female)
 
     # PAL and TDEE
-    wf = float(new_user["Workout_Frequency (days/week)"].iloc[0])
+    wf = float(new_user["Workout_Frequency (days)"].iloc[0])
     out["PAL"] = 1.2 + 0.175 * wf
     out["TDEE"] = out["BMR"] * out["PAL"]
 
@@ -314,12 +312,12 @@ def create_workout_features(df: pd.DataFrame) -> pd.DataFrame:
     S = out["workload"] / out["Difficulty Level"]
     out["S"] = (S - S.min()) / (S.max() - S.min())
 
-    # --- D: Duration (нормируем длину тренировки) ---
+    # --- D: Duration (normalize training duration) ---
     out["Duration_min"] = out["Session_Duration (hours)"] * 60
     dur = out["Duration_min"]
     out["D"] = (dur - dur.min()) / (dur.max() - dur.min())
 
-    # --- R: Risk = 1 - (0.4*pen_age + 0.3*pen_bmi + 0.2*pen_hrr + 0.1*pen_skill) ---
+    # --- R: Risk  ---
 
     # 1) Age
     age = out["Age"]
@@ -347,7 +345,13 @@ def create_workout_features(df: pd.DataFrame) -> pd.DataFrame:
       + 0.2 * out["pen_hrr"]
       + 0.1 * out["pen_skill"]
     )
-
+    
+    out = out.drop(columns=["BMR", "PAL", "TDEE", "CalorieChange", "CaloriesToBurnTraining", "CaloriesReducedFromFood", 
+                            "CaloriesPerDay", "TotalWorkouts", "CaloriesPerWorkout", "E_raw", "E_eff", "pct_HRR", "Session_Duration (hours)", 
+                            "pen_age", "pen_bmi", "pen_hrr", "pen_skill"]) # drop helper variables created from other columns
+    out = out.drop(columns=["Age", "Experience_Level", "Difficulty Level", "Calories_Burned", "Burns Calories (per 30 min)", "Duration_min", 
+                            "Max_BPM", "Avg_BPM", "Resting_BPM"]) # drop these columns to avoid data leakage
+    out = out.drop(columns=["cooking_method","meal_type", "Calories", "serving_size_g", "sugar_g", "sodium_g", "cholesterol_g", "Carbs", "Proteins", "Fats"]) # drop meal related columns, leave 'meal_name' only
     return out
 
 
@@ -362,7 +366,17 @@ def create_meal_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
     ED – Energy Density
     F  – Food Safety
     """
+
     out = df.copy()
+    # Create 'meal_name' by combining cooking_method, diet_type, and meal_type
+    out['meal_name'] = (
+        out['cooking_method'].fillna('Unknown').astype(str) + " " +
+        out['diet_type'].fillna('Balanced').astype(str) + " " +
+        out['meal_type'].fillna('Meal').astype(str)
+    ).str.title()
+
+    # Drop the original columns after combining
+    out = out.drop(columns=['cooking_method', 'diet_type', 'meal_type'])
 
     # --- C: Calorie Fit ---
     meal_target = new_user["Meal_target"].iloc[0]
