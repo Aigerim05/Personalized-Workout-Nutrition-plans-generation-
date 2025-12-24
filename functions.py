@@ -1,8 +1,20 @@
 from __future__ import annotations
 import pandas as pd
 import numpy as np
-from joblib import load
+import joblib
 
+from xgboost import XGBRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import RandomizedSearchCV
+
+from sklearn.model_selection import train_test_split, learning_curve
+from sklearn.metrics import mean_squared_error
+
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from scipy.sparse import vstack, issparse
 
 GENDER_MAP = {1: "Female", 2: "Male"}
 
@@ -447,6 +459,189 @@ def create_meal_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
     
     return out
 
+
+def build_and_train_workout_model(df: pd.DataFrame, new_user: pd.DataFrame) -> None:
+    goal = new_user['Goal'].iloc[0]
+
+    if goal == 'Loss':
+        df['target'] = 0.45*df['E'] + 0.25*df['I'] + 0.10*df['D'] + 0.05*df['S'] + 0.15*df['R']
+    elif goal == 'Maintain':
+        df['target'] = 0.25*df['E'] + 0.20*df['I'] + 0.15*df['D'] + 0.20*df['S'] + 0.20*df['R']
+    elif goal == 'Gain':
+        df['target'] = 0.05*df['E'] + 0.15*df['I'] + 0.10*df['D'] + 0.50*df['S'] + 0.20*df['R']
+    else:
+        raise ValueError("Goal must be one of: 'Loss', 'Maintain', 'Gain'")
+    
+
+    df = df.drop(columns=['E', 'I', 'D', 'S', 'R'])
+
+   
+    X = df.drop(columns=["target"])
+    y = df["target"]
+
+    # 70% train, 15% val, 15% test
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        X, y, test_size=0.30, random_state=42
+    )
+
+    X_val, X_test, y_val, y_test = train_test_split(
+        X_temp, y_temp, test_size=0.50, random_state=42
+    )
+  
+
+    numerical_features = [
+    'Weight (kg)', 'Height (m)', 'BMI',
+    'Workout_Frequency (days)', 'Daily meals frequency',
+    'Sets', 'Reps', 'rating', 'workload'
+    ]
+    categorical_features = [
+        'Gender', 'Workout_Type', 'diet_type', 'Name of Exercise', 'Benefit',
+        'Target Muscle Group', 'Equipment Needed', 'Body Part',
+        'Type of Muscle', 'Workout', 'cluster_id'
+    ]
+        
+    preprocess = ColumnTransformer(
+    transformers=[
+        ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features),
+        ("num", "passthrough", numerical_features),
+        ],
+        remainder="drop"
+    )
+
+    X_train_enc = preprocess.fit_transform(X_train)
+    X_val_enc   = preprocess.transform(X_val)
+    X_test_enc  = preprocess.transform(X_test)
+
+    # Helper function (RMSE)
+    def rmse(y_true, y_pred):
+        return np.sqrt(mean_squared_error(y_true, y_pred))
+    
+
+    # ============================================================
+    # SECTION 3: MODEL WITH TUNED HYPERPARAMETERS (RandomizedSearchCV on TRAIN only)
+    # ============================================================
+    xgb_base = XGBRegressor(
+        objective="reg:squarederror",
+        random_state=42,
+        n_jobs=-1
+    )
+
+    param_distributions = {
+        "n_estimators": [100, 200, 300, 500, 800, 1200],
+        "learning_rate": [0.01, 0.03, 0.05, 0.08, 0.1, 0.2],
+        "max_depth": [2, 3, 4, 5, 6, 8],
+        "min_child_weight": [1, 2, 5, 10],
+        "subsample": [0.6, 0.8, 0.9, 1.0],
+        "colsample_bytree": [0.6, 0.8, 0.9, 1.0],
+        "gamma": [0, 0.1, 0.3, 0.5, 1.0],
+        "reg_alpha": [0, 1e-4, 1e-3, 1e-2, 0.1, 1.0],
+        "reg_lambda": [0.5, 1.0, 2.0, 5.0, 10.0],
+    }
+
+    search = RandomizedSearchCV(
+        estimator=xgb_base,
+        param_distributions=param_distributions,
+        n_iter=40,
+        scoring="neg_mean_squared_error",
+        cv=5,
+        verbose=1,
+        random_state=42,
+        n_jobs=-1
+    )
+
+    # IMPORTANT: Fit on TRAIN only 
+    search.fit(X_train_enc, y_train)
+
+    best_params = search.best_params_
+    best_cv_rmse = np.sqrt(-search.best_score_)
+
+    print("[Tuned HP] Best CV params:", best_params)
+    print(f"[Tuned HP] Best CV RMSE: {best_cv_rmse:.6f}")
+
+    # evaluate tuned model on VALIDATION as a holdout check
+    xgb_tuned_train_only = XGBRegressor(
+        **best_params,
+        objective="reg:squarederror",
+        random_state=42,
+        n_jobs=-1
+    )
+    xgb_tuned_train_only.fit(X_train_enc, y_train)
+
+    val_pred_tuned = xgb_tuned_train_only.predict(X_val_enc)
+    val_rmse_tuned = rmse(y_val, val_pred_tuned)
+    print(f"[Tuned HP] Validation RMSE (holdout check): {val_rmse_tuned:.6f}")
+
+    # ============================================================
+    # SECTION 4: FINAL MODEL (best tuned hyperparams substituted)
+    # Classical step: train on TRAIN+VAL, then test once
+    # ============================================================
+    # Combine train + val encoded matrices
+    if issparse(X_train_enc) or issparse(X_val_enc):
+        X_trainval_enc = vstack([X_train_enc, X_val_enc])
+    else:
+        X_trainval_enc = np.vstack([X_train_enc, X_val_enc])
+
+    y_trainval = np.concatenate([y_train.to_numpy(), y_val.to_numpy()])
+
+    final_model = XGBRegressor(
+        **best_params,
+        objective="reg:squarederror",
+        random_state=42,
+        n_jobs=-1
+    )
+    final_model.fit(X_trainval_enc, y_trainval)
+
+    test_pred_final = final_model.predict(X_test_enc)
+    test_rmse_final = rmse(y_test, test_pred_final)
+    print(f"[FINAL] Test RMSE (trained on train+val): {test_rmse_final:.6f}")
+
+    joblib.dump(preprocess, "encoder.pkl")
+    joblib.dump(final_model, "models/workout_model.pkl")
+    print("Workout model is trained!")
+
+
+def predict_workout_score(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFrame:
+    new_user = new_user.drop(
+                    columns=['Age', 'Goal', 'WeightChange (kg)', 'GoalDays', 'BMR', 'PAL', 'TDEE', 'CalorieChange', 'CaloriesToBurnTraining', 
+                        'CaloriesReducedFromFood', 'CaloriesPerDay',  'TotalWorkouts', 'CaloriesPerWorkout']
+                )
+    # Exercise-related features
+    exercise_df = df[
+                        ['Sets', 'Reps', 'rating', 'workload', 'Workout_Type', 'Name of Exercise', 'Benefit',
+                            'Target Muscle Group', 'Equipment Needed', 'Body Part',
+                            'Type of Muscle', 'Workout' ]
+    ].reset_index(drop=True)
+
+    # Repeat user row to match number of exercises 
+    workout_predict = pd.concat(
+        [pd.concat([new_user] * len(exercise_df), ignore_index=True), exercise_df],
+        axis=1
+    )
+
+    preprocess = joblib.load("encoder.pkl")
+    final_model = joblib.load("models/workout_model.pkl")
+
+    # Add predictions as a new column
+    workout_predict_enc = preprocess.transform(workout_predict)
+    predictions = final_model.predict(workout_predict_enc)
+
+    workout_predict = workout_predict.copy()
+    workout_predict["workout_score"] = predictions
+    
+    return workout_predict
+
+
+# Скопировать и адаптировать cosine similarity сюда 
+# def run_cosine_similarity_workout(df: pd.DataFrame) 
+    
+
+
+def generate_workout_plan(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFrame:
+    data = "data/dataset_with_user_features.csv" 
+    df = pd.read_csv(data)
+    df = create_workout_features(df)
+    build_and_train_workout_model(df, new_user)
+    df = predict_workout_score(df, new_user)
 
 
 
