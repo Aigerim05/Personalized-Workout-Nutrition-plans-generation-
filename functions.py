@@ -151,11 +151,6 @@ def collect_new_user() -> dict:
     return user_data
 
 
-def save_user_to_csv(user_data: dict, output_path: str = "data/new_user.csv") -> None:
-    df_new = pd.DataFrame([user_data])
-    df_new.to_csv(output_path, index=False)
-    print(f"Data saved to {output_path}")
-
 # Predicts cluster_id for the dataframe and adds the column cluster_id to dataframe
 # This same function is used for the new_user dataframe containing only one row of new user
 
@@ -244,7 +239,7 @@ def create_user_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
 
     Expected columns from new_user:
     Age, Gender, Weight (kg), Height (m), BMI, Workout_Frequency (days/week),
-    WeightChange (kg), GoalDays, Goal ({"Loss","Maintain","Gain"})
+    WeightChange (kg), GoalDays, Goal ({"Loss","Maintain","Gain"}), cluster_id
     """
     out = df.copy()
     out = df.drop(columns=["Water_Intake (liters)"])
@@ -361,7 +356,7 @@ def create_workout_features(df: pd.DataFrame) -> pd.DataFrame:
     out = out.drop(columns=["BMR", "PAL", "TDEE", "CalorieChange", "CaloriesToBurnTraining", "CaloriesReducedFromFood", 
                             "CaloriesPerDay", "TotalWorkouts", "CaloriesPerWorkout", "E_raw", "E_eff", "pct_HRR", "Session_Duration (hours)", 
                             "pen_age", "pen_bmi", "pen_hrr", "pen_skill"]) # drop helper variables created from other columns
-    out = out.drop(columns=["Age", "Experience_Level", "Difficulty Level", "Calories_Burned", "Burns Calories (per 30 min)", "Duration_min", 
+    out = out.drop(columns=["Age", "BMI", "Experience_Level", "Difficulty Level", "Calories_Burned", "Burns Calories (per 30 min)", "Duration_min", 
                             "Max_BPM", "Avg_BPM", "Resting_BPM"]) # drop these columns to avoid data leakage
     out = out.drop(columns=["cooking_method","meal_type", "Calories", "serving_size_g", "sugar_g", "sodium_g", "cholesterol_g", "Carbs", "Proteins", "Fats"]) # drop meal related columns, leave 'meal_name' only
     return out
@@ -453,8 +448,8 @@ def create_meal_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
                             "sodium_g", "sugar_g", "Proteins", "Carbs", "Fats", "Calories", "Daily meals frequency", "Proteins", "serving_size_g"]) # drop these features to avoid data leakage
     out = out.drop(columns=["CalorieChange", "CaloriesToBurnTraining", "CaloriesReducedFromFood", "CaloriesPerDay", "CaloriesPerWorkout", 
                             "TotalWorkouts", "pct_p", "pct_c", "pct_f", "BMR", "PAL", "TDEE", "cal_from_protein", "cal_from_carbs", "cal_from_fats"]) # drop these helper features
-    out = out.drop(columns=["CalorieChange", "CaloriesToBurnTraining", "CaloriesReducedFromFood", "CaloriesPerDay", "CaloriesPerWorkout", 
-                            "TotalWorkouts", "pct_p", "pct_c", "pct_f", "BMR", "PAL", "TDEE", "cal_from_protein", "cal_from_carbs", "cal_from_fats"]) # drop these helper features
+    # out = out.drop(columns=["CalorieChange", "CaloriesToBurnTraining", "CaloriesReducedFromFood", "CaloriesPerDay", "CaloriesPerWorkout", 
+    #                         "TotalWorkouts", "pct_p", "pct_c", "pct_f", "BMR", "PAL", "TDEE", "cal_from_protein", "cal_from_carbs", "cal_from_fats"]) # workout
     
     
     return out
@@ -642,7 +637,7 @@ def generate_workout_plan(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFr
     df = create_workout_features(df)
     build_and_train_workout_model(df, new_user)
     df = predict_workout_score(df, new_user)
-
+# run_cosine_similarity_workout
 
 
 

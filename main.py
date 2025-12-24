@@ -8,7 +8,7 @@ def main() -> None:
     df = create_user_features(df, df)             # add BMR/TDEE/etc
     
     df.to_csv('data/new_user.csv', index=False)
-
+# generate_workout_plan
 
 if __name__ == "__main__":
     main()
