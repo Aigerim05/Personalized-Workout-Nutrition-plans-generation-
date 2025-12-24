@@ -1,2 +1,2 @@
 Age,Gender,Weight (kg),Height (m),BMI,Experience_Level,Workout_Frequency (days),Daily meals frequency,diet_type,Goal,WeightChange (kg),GoalDays,cluster_id,BMR,PAL,TDEE,CalorieChange,CaloriesToBurnTraining,CaloriesReducedFromFood,CaloriesPerDay,TotalWorkouts,CaloriesPerWorkout
-22,Male,88.0,1.8,27.160493827160494,2,3,3,Keto,Maintain,3.0,30,0,1900.0,1.7249999999999999,3277.4999999999995,23100.0,11550.0,11550.0,3277.4999999999995,12.857142857142858,898.3333333333333
+20,Female,55.0,1.7,19.031141868512112,1,2,2,Balanced,Gain,5.0,20,1,1351.5,1.5499999999999998,2094.825,38500.0,19250.0,19250.0,3057.325,5.714285714285714,3368.75

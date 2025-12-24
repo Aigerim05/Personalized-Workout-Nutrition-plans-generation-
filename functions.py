@@ -16,6 +16,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.sparse import vstack, issparse
 
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+
 GENDER_MAP = {1: "Female", 2: "Male"}
 
 EXPERIENCE_MAP = {
@@ -172,7 +177,7 @@ def predict_cluster_id(
         raise ValueError("user_df must contain at least 1 row.")
 
     # --- load artifacts ---
-    artifacts = load(artifacts_path)
+    artifacts = joblib.load(artifacts_path)
     kmeans = artifacts["kmeans"]
     numeric_cols = artifacts["numeric_cols"]
     mean_dict = artifacts["mean_dict"]
@@ -242,7 +247,6 @@ def create_user_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
     WeightChange (kg), GoalDays, Goal ({"Loss","Maintain","Gain"}), cluster_id
     """
     out = df.copy()
-    out = df.drop(columns=["Water_Intake (liters)"])
     # Basic fields
     weight = out["Weight (kg)"].astype(float)
     height_cm = (out["Height (m)"].astype(float) * 100.0)
@@ -293,10 +297,11 @@ def create_workout_features(df: pd.DataFrame) -> pd.DataFrame:
     E - Energy Consumption
     I - Intensity
     S - Power component
-    D - Duration (нормированная)
+    D - Duration (РЅРѕСЂРјРёСЂРѕРІР°РЅРЅР°СЏ)
     R - Risk (1 - penalties)
     """
     out = df.copy()
+    #out["Cal_30_min"] = df["Burns Calories (per 30 min)"].copy()
 
     # --- E: Energy consumption ---
     # E_raw
@@ -352,13 +357,12 @@ def create_workout_features(df: pd.DataFrame) -> pd.DataFrame:
       + 0.2 * out["pen_hrr"]
       + 0.1 * out["pen_skill"]
     )
-    
     out = out.drop(columns=["BMR", "PAL", "TDEE", "CalorieChange", "CaloriesToBurnTraining", "CaloriesReducedFromFood", 
                             "CaloriesPerDay", "TotalWorkouts", "CaloriesPerWorkout", "E_raw", "E_eff", "pct_HRR", "Session_Duration (hours)", 
-                            "pen_age", "pen_bmi", "pen_hrr", "pen_skill"]) # drop helper variables created from other columns
-    out = out.drop(columns=["Age", "BMI", "Experience_Level", "Difficulty Level", "Calories_Burned", "Burns Calories (per 30 min)", "Duration_min", 
-                            "Max_BPM", "Avg_BPM", "Resting_BPM"]) # drop these columns to avoid data leakage
-    out = out.drop(columns=["cooking_method","meal_type", "Calories", "serving_size_g", "sugar_g", "sodium_g", "cholesterol_g", "Carbs", "Proteins", "Fats"]) # drop meal related columns, leave 'meal_name' only
+                            "pen_age", "pen_bmi", "pen_hrr", "pen_skill"], errors='ignore') # drop helper variables created from other columns
+    out = out.drop(columns=["Age", "BMI", "Experience_Level", "Difficulty Level", "Duration_min", 
+                            "Max_BPM", "Avg_BPM", "Resting_BPM", "workload", "Burns Calories (per 30 min)"], errors='ignore') # drop these columns to avoid data leakage
+    out = out.drop(columns=["cooking_method","meal_type", "Calories", "serving_size_g", "sugar_g", "sodium_g", "cholesterol_g", "Carbs", "Proteins", "Fats"], errors='ignore') # drop meal related columns, leave 'meal_name' only
     return out
 
 
@@ -367,14 +371,15 @@ def create_meal_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
     """
     Create meal features:
 
-    C  – Calorie Fit
-    P  – Protein per meal
-    M  – Macro Match
-    ED – Energy Density
-    F  – Food Safety
+    C  -> Calorie Fit
+    P  -> Protein per meal
+    M  -> Macro Match
+    ED -> Energy Density
+    F  -> Food Safety
     """
 
     out = df.copy()
+    out['Cal'] = out['Calories'] / out ["Daily meals frequency"]
     # Create 'meal_name' by combining cooking_method, diet_type, and meal_type
     out['meal_name'] = (
         out['cooking_method'].fillna('Unknown').astype(str) + " " +
@@ -383,7 +388,7 @@ def create_meal_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
     ).str.title()
 
     # Drop the original columns after combining
-    out = out.drop(columns=['cooking_method', 'diet_type', 'meal_type'])
+    #out = out.drop(columns=['cooking_method', 'diet_type', 'meal_type'])
 
     # --- C: Calorie Fit ---
     calories_per_day = float(new_user["CaloriesPerDay"].iloc[0])
@@ -444,12 +449,13 @@ def create_meal_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
         + (out["cholesterol_g"] / chol_90).clip(upper=1)
     )
 
-    out = out.drop(columns=["Weight (kg)", "Height (m)", "BMI", "Calories_Burned", "Workout_Frequency (days)", "cholesterol_g", 
+    out = out.drop(columns=["Calories_Burned", "Workout_Frequency (days)", "cholesterol_g", 
                             "sodium_g", "sugar_g", "Proteins", "Carbs", "Fats", "Calories", "Daily meals frequency", "Proteins", "serving_size_g"]) # drop these features to avoid data leakage
     out = out.drop(columns=["CalorieChange", "CaloriesToBurnTraining", "CaloriesReducedFromFood", "CaloriesPerDay", "CaloriesPerWorkout", 
                             "TotalWorkouts", "pct_p", "pct_c", "pct_f", "BMR", "PAL", "TDEE", "cal_from_protein", "cal_from_carbs", "cal_from_fats"]) # drop these helper features
-    # out = out.drop(columns=["CalorieChange", "CaloriesToBurnTraining", "CaloriesReducedFromFood", "CaloriesPerDay", "CaloriesPerWorkout", 
-    #                         "TotalWorkouts", "pct_p", "pct_c", "pct_f", "BMR", "PAL", "TDEE", "cal_from_protein", "cal_from_carbs", "cal_from_fats"]) # workout
+    out = out.drop(columns=['Sets', 'Reps', 'rating', 'Workout_Type', 'Name of Exercise', 'Benefit',
+                            'Target Muscle Group', 'Equipment Needed', 'Body Part', 'Max_BPM', 'Avg_BPM', 'Resting_BPM', 'Session_Duration (hours)',
+                            'Type of Muscle', 'Workout', 'Experience_Level', 'Difficulty Level', 'Burns Calories (per 30 min)']) # workout
     
     
     return out
@@ -485,9 +491,9 @@ def build_and_train_workout_model(df: pd.DataFrame, new_user: pd.DataFrame) -> N
   
 
     numerical_features = [
-    'Weight (kg)', 'Height (m)', 'BMI',
+    'Weight (kg)', 'Height (m)',
     'Workout_Frequency (days)', 'Daily meals frequency',
-    'Sets', 'Reps', 'rating', 'workload'
+    'Sets', 'Reps', 'rating'
     ]
     categorical_features = [
         'Gender', 'Workout_Type', 'diet_type', 'Name of Exercise', 'Benefit',
@@ -602,7 +608,7 @@ def predict_workout_score(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFr
                 )
     # Exercise-related features
     exercise_df = df[
-                        ['Sets', 'Reps', 'rating', 'workload', 'Workout_Type', 'Name of Exercise', 'Benefit',
+                        ['Sets', 'Reps', 'rating', 'Workout_Type', 'Name of Exercise', 'Benefit',
                             'Target Muscle Group', 'Equipment Needed', 'Body Part',
                             'Type of Muscle', 'Workout' ]
     ].reset_index(drop=True)
@@ -622,22 +628,488 @@ def predict_workout_score(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFr
 
     workout_predict = workout_predict.copy()
     workout_predict["workout_score"] = predictions
-    
+    workout_predict["Calories_Burned"] = df["Calories_Burned"].values
+
     return workout_predict
 
 
-# Скопировать и адаптировать cosine similarity сюда 
-# def run_cosine_similarity_workout(df: pd.DataFrame) 
-    
+def run_cosine_similarity_workout(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFrame:
+    workout_predict = predict_workout_score(df, new_user)
+    user_full = new_user.copy()
+    new_user = new_user.drop(
+                    columns=['Age', 'Goal', 'WeightChange (kg)', 'GoalDays', 'BMR', 'PAL', 'TDEE', 'CalorieChange', 'CaloriesToBurnTraining', 
+                        'CaloriesReducedFromFood', 'CaloriesPerDay',  'TotalWorkouts', 'CaloriesPerWorkout', "BMI"]
+                )
+    # ----------------------------
+    # 1) Candidate generation: Top N
+    # ----------------------------
+    TOP_N = 100
+    candidates = (workout_predict.sort_values("workout_score", ascending=False).head(TOP_N).reset_index(drop=True).copy()) 
+    # ----------------------------
+    # 2) Build text for vectorization (classic content-based)
+    # ----------------------------
+    TEXT_COLS = ["Benefit", "Target Muscle Group", "Equipment Needed", "Workout", "Body Part", "Type of Muscle", "Workout_Type", "Name of Exercise"]
+
+    def make_text_profile(df: pd.DataFrame, cols=TEXT_COLS) -> pd.Series:
+        tmp = df[cols].copy()
+        for c in cols:
+            tmp[c] = (tmp[c].astype(str).fillna("")
+                    .str.lower()
+                    .str.replace(r"\s+", " ", regex=True)
+                    .str.strip())
+        return tmp.apply(lambda r: " ".join([v for v in r.values if v and v != "nan"]), axis=1)
+
+    exercise_text = make_text_profile(candidates)
+
+    # TF-IDF vectors for exercises
+    vectorizer = TfidfVectorizer(ngram_range=(1, 2), min_df=1, max_features=5000)
+    X_ex = vectorizer.fit_transform(exercise_text)
+    # ----------------------------
+    # 3) Create "day prototypes" as text -> vector 
+    # ----------------------------
+    day_prototypes = {
+        "Legs": "legs lower body quads quadriceps hamstrings glutes calves posterior",
+        "Push": "chest shoulders triceps upper chest pressing push",
+        "Pull": "back lats upper back biceps rows pull",
+        "Core": "abs core obliques plank dead bug flutter kicks",
+    }
+
+    proto_text = list(day_prototypes.values())
+    X_proto = vectorizer.transform(proto_text)  # same vector space
+
+    # similarity of each exercise to each day prototype
+    S_day = cosine_similarity(X_ex, X_proto)   # shape: (n_exercises, 4)
+
+    day_names = list(day_prototypes.keys())
+    candidates["day_label"] = [day_names[i] for i in np.argmax(S_day, axis=1)]
+    candidates["day_sim"] = np.max(S_day, axis=1)  # confidence (how strongly it matches)
+
+    # ----------------------------
+    # 4) MMR reranking: relevant + diverse inside each day
+    # ----------------------------
+    def mmr_select_calories(df_day: pd.DataFrame, X_day_vecs, calories_target, k=4, alpha=0.75):
+        if len(df_day) == 0:
+            return df_day
+
+        # normalize
+        rel = df_day["workout_score"].to_numpy()
+        rel = (rel - rel.min()) / (rel.max() - rel.min() + 1e-9)
+
+        selected_idx = []
+        remaining = list(range(len(df_day)))
+        sims = cosine_similarity(X_day_vecs, X_day_vecs)
+
+        current_calories = 0.0
+
+        while remaining and len(selected_idx) < k and current_calories < calories_target:
+            if not selected_idx:
+                best = remaining[int(np.argmax(rel[remaining]))]
+            else:
+                mmr_scores = []
+                for i in remaining:
+                    max_sim_to_selected = np.max(sims[i, selected_idx]) if selected_idx else 0
+                    mmr = alpha * rel[i] - (1-alpha) * max_sim_to_selected
+                    mmr_scores.append(mmr)
+                best = remaining[int(np.argmax(mmr_scores))]
+
+            selected_idx.append(best)
+            current_calories += df_day.iloc[best]["Calories_Burned"]  # summing calories burned
+            remaining.remove(best)
+
+            if current_calories >= calories_target:
+                break  # if reached target workout calories (per day)
+
+        return df_day.iloc[selected_idx].copy()
+
+    # ----------------------------
+    # 5) Plan Generation TotalWorkouts
+    # ----------------------------
+    plan = []
+    for day in range(int(user_full.TotalWorkouts.iloc[0])):
+        day_label = day_names[day % len(day_names)]
+        df_day = candidates[candidates["day_label"] == day_label].copy()
+        idx = df_day.index.to_numpy()
+        X_day = X_ex[idx]
+
+        day_plan = mmr_select_calories(df_day, X_day, calories_target=user_full.CaloriesPerWorkout.iloc[0], k=4, alpha=0.75)
+        plan.append((day_label, day_plan))
+    # ----------------------------
+    # 6) Output
+    # ----------------------------
+    cols_show = ['Workout_Type', 'Workout', 'Name of Exercise', 'Body Part',
+                'Target Muscle Group', 'Equipment Needed', 'Sets', 'Reps', 'Type of Muscle', 'Benefit', 'Calories_Burned']
+    all_days = []
+
+    for i, (day_label, day_plan) in enumerate(plan, start=1):
+        temp = day_plan[cols_show].copy()
+        temp["Day"] = i
+        all_days.append(temp)
+
+    plan_df = pd.concat(all_days, ignore_index=True)
+    plan_df.to_csv("workout_plan.csv", index=False)
+    print("Plan saved -> workout_plan.csv")
+    return plan_df
 
 
-def generate_workout_plan(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFrame:
+def save_to_pdf(plan_df, filename="plan.pdf"):
+    doc = SimpleDocTemplate(
+        filename,
+        pagesize=landscape(A4),
+        rightMargin=20,
+        leftMargin=20,
+        topMargin=20,
+        bottomMargin=20
+    )
+    styles = getSampleStyleSheet()
+    elements = []
+    for day in plan_df["Day"].unique():
+        day_df = plan_df[plan_df["Day"] == day]
+        elements.append(Paragraph(f"<b>{day}</b>", styles["Heading2"]))
+        table_data = [day_df.columns.tolist()] + day_df.values.tolist()
+
+        table = Table(table_data, repeatRows=1)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightblue),
+            ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+            ("FONT", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 7), 
+            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        elements.append(table)
+        elements.append(Paragraph("<br/><br/>", styles["Normal"]))
+    doc.build(elements)
+
+
+def build_and_train_meal_model(df: pd.DataFrame, user: pd.DataFrame) -> None:
+    goal = user['Goal'].iloc[0]
+
+    if goal == 'Loss':
+        df['target'] = 0.35*df['C'] + 0.25*df['P'] + 0.15*df['M'] + 0.15*df['ED'] + 0.1*df['F']
+    elif goal == 'Maintain':
+        df['target'] = 0.3*df['C'] + 0.25*df['M'] + 0.2*df['P'] + 0.1*df['ED'] + 0.15*df['F']
+    elif goal == 'Gain':
+        df['target'] = 0.4*df['C'] + 0.3*df['P'] + 0.15*df['M'] + 0.1*df['ED'] + 0.05*df['F']
+    else:
+        raise ValueError("Goal must be one of: 'Loss', 'Maintain', 'Gain'")
+    df = df.drop(columns=['C', 'P', 'M', 'ED', 'F'])
+    df_full = df.copy()
+    # 3) Split X/y
+    X = df.drop(columns=['target'])
+    y = df['target']
+
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        X, y, test_size=0.30, random_state=42
+    )
+
+    X_val, X_test, y_val, y_test = train_test_split(
+        X_temp, y_temp, test_size=0.50, random_state=42
+    )
+    numerical_features = ['Age', 'Weight (kg)', 'Height (m)', 'Water_Intake (liters)', 'BMI']
+
+    categorical_features = ['Gender', 'meal_type', 'diet_type', 'cooking_method', 'cluster_id', 'meal_name']
+    # 4) One-hot encoding (fit on train only, transform val/test)
+    preprocess = ColumnTransformer(
+        transformers=[
+            ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features),
+            ("num", "passthrough", numerical_features),
+        ],
+        remainder="drop"
+    )
+
+    X_train_enc = preprocess.fit_transform(X_train)
+    X_val_enc   = preprocess.transform(X_val)
+    X_test_enc  = preprocess.transform(X_test)
+    # --------------------------------------------------
+    # Manual selection of n_estimators using VALIDATION
+    # --------------------------------------------------
+
+    n_estimators_list = [50, 100, 200, 300, 500]
+    results = []
+
+    for n in n_estimators_list:
+        model = XGBRegressor(
+            n_estimators=n,
+            learning_rate=0.05,
+            max_depth=5,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            objective="reg:squarederror",
+            random_state=42
+        )
+        
+        model.fit(X_train_enc, y_train)
+        val_pred = model.predict(X_val_enc)
+        
+        rmse = np.sqrt(mean_squared_error(y_val, val_pred))
+        results.append((n, rmse))
+
+    # --------------------------------------------------
+    # Select best n_estimators
+    # --------------------------------------------------
+
+    best_n, best_rmse = min(results, key=lambda x: x[1])
+    # --------------------------------------------------
+    # Train FINAL model on training data
+    # --------------------------------------------------
+
+    final_model = XGBRegressor(
+        n_estimators=best_n,
+        learning_rate=0.05,
+        max_depth=5,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        objective="reg:squarederror",
+        random_state=42
+    )
+
+    final_model.fit(X_train_enc, y_train);  
+    test_pred = final_model.predict(X_test_enc)
+    test_rmse = np.sqrt(mean_squared_error(y_test, test_pred))
+    print(f"Test RMSE: {test_rmse:.4f}")
+    # Base model (we keep objective fixed for regression)
+    xgb = XGBRegressor(
+        objective="reg:squarederror",
+        random_state=42,
+        n_jobs=-1
+    )
+
+    # Parameter search space (covers the big knobs)
+    param_distributions = {
+        "n_estimators": [100, 200, 300, 500, 800, 1200],
+        "learning_rate": [0.01, 0.03, 0.05, 0.08, 0.1, 0.2],
+        "max_depth": [2, 3, 4, 5, 6, 8],
+        "min_child_weight": [1, 2, 5, 10],
+        "subsample": [0.6, 0.8, 0.9, 1.0],
+        "colsample_bytree": [0.6, 0.8, 0.9, 1.0],
+        "gamma": [0, 0.1, 0.3, 0.5, 1.0],
+        "reg_alpha": [0, 1e-4, 1e-3, 1e-2, 0.1, 1.0],
+        "reg_lambda": [0.5, 1.0, 2.0, 5.0, 10.0],
+    }
+
+    # Use neg MSE for max compatibility with older sklearn,
+    # then we take sqrt later for RMSE.
+    search = RandomizedSearchCV(
+        estimator=xgb,
+        param_distributions=param_distributions,
+        n_iter=40,                 # increase to 80+ if you can afford time
+        scoring="neg_mean_squared_error",
+        cv=5,
+        verbose=1,
+        random_state=42,
+        n_jobs=-1
+    )
+
+    search.fit(X_train_enc, y_train)
+
+    print("Best CV params:", search.best_params_)
+    print("Best CV RMSE:", np.sqrt(-search.best_score_))
+    best_model = search.best_estimator_
+
+    val_pred = best_model.predict(X_val_enc)
+    val_rmse = np.sqrt(mean_squared_error(y_val, val_pred))
+
+    print(f"Validation RMSE after tuning: {val_rmse:.6f}")
+    test_pred = best_model.predict(X_test_enc)
+    test_rmse = np.sqrt(mean_squared_error(y_test, test_pred))
+    print(f"Test RMSE: {test_rmse:.6f}")
+    joblib.dump(preprocess, "meal_encoder.pkl")
+    joblib.dump(final_model, "models/meal_model.pkl")
+    print("Saved the meal model!")
+
+def predict_meal_score(df: pd.DataFrame, user: pd.DataFrame) -> pd.DataFrame:
+    user_full = user.copy()
+    user = user.drop(
+                        columns=['Goal', 'WeightChange (kg)', 'GoalDays', 'BMR', 'PAL', 'TDEE', 'CalorieChange', 'CaloriesToBurnTraining', 
+                            'CaloriesReducedFromFood', 'CaloriesPerDay',  'TotalWorkouts', 'CaloriesPerWorkout', 'Experience_Level', 
+                            'Workout_Frequency (days)', 'Daily meals frequency']
+                )
+    # Meal-related features
+    meal_df = df[
+                        ['Water_Intake (liters)', 'meal_type', 'cooking_method', 'meal_name' ]
+    ].reset_index(drop=True)
+
+    # Repeat user row to match number of meals 
+    meal_predict = pd.concat(
+        [pd.concat([user] * len(meal_df), ignore_index=True), meal_df],
+        axis=1
+    )
+    preprocess = joblib.load("meal_encoder.pkl")
+    final_model = joblib.load("models/meal_model.pkl")
+
+    meal_predict_enc = preprocess.transform(meal_predict)
+    predictions = final_model.predict(meal_predict_enc)
+    meal_predict = meal_predict.copy()
+    meal_predict["meal_score"] = predictions
+
+    meal_predict["Calories"] = df["Cal"].values
+    return meal_predict
+
+
+
+def run_cosine_similarity_meal(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFrame:
+    meal_predict = predict_meal_score(df, new_user)
+    # ----------------------------
+    # 1) Candidate generation: Top N meals
+    # ----------------------------
+    TOP_N = 100
+    candidates = (
+        meal_predict
+        .sort_values("meal_score", ascending=False)
+        .head(TOP_N)
+        .reset_index(drop=True)
+        .copy()
+    )
+
+    # ----------------------------
+    # 2) Build text for vectorization (optional, e.g., for meal type / diet_type)
+    # ----------------------------
+    TEXT_COLS = ["meal_name", "diet_type", "cooking_method"]  # можно расширять
+
+    def make_text_profile(df: pd.DataFrame, cols=TEXT_COLS) -> pd.Series:
+        tmp = df[cols].copy()
+        for c in cols:
+            tmp[c] = (tmp[c].astype(str).fillna("")
+                    .str.lower()
+                    .str.replace(r"\s+", " ", regex=True)
+                    .str.strip())
+        return tmp.apply(lambda r: " ".join([v for v in r.values if v and v != "nan"]), axis=1)
+
+    meal_text = make_text_profile(candidates)
+
+    # TF-IDF vectors for meals
+    vectorizer = TfidfVectorizer(ngram_range=(1, 2), min_df=1, max_features=5000)
+    X_meal = vectorizer.fit_transform(meal_text)
+
+    # ----------------------------
+    # 3) Create "day prototypes" (breakfast/lunch/dinner/snack or day parts)
+    # ----------------------------
+    day_prototypes = {
+        "Breakfast": "breakfast",
+        "Lunch": "lunch",
+        "Dinner": "dinner",
+        "Snack": "snack",
+    }
+
+    proto_text = list(day_prototypes.values())
+    X_proto = vectorizer.transform(proto_text)
+
+    # similarity of each meal to each day prototype
+    S_day = cosine_similarity(X_meal, X_proto)
+
+    day_names = list(day_prototypes.keys())
+    candidates["day_label"] = [day_names[i] for i in np.argmax(S_day, axis=1)]
+    candidates["day_sim"] = np.max(S_day, axis=1)
+
+    # ----------------------------
+    # 4) MMR reranking: relevant + diverse + calories target per meal
+    # ----------------------------
+    def mmr_select_calories(df_day: pd.DataFrame, X_day_vecs, calories_target, k=4, alpha=0.75):
+        if len(df_day) == 0:
+            return df_day
+
+        rel = df_day["meal_score"].to_numpy()
+        rel = (rel - rel.min()) / (rel.max() - rel.min() + 1e-9)
+
+        selected_idx = []
+        remaining = list(range(len(df_day)))
+        sims = cosine_similarity(X_day_vecs, X_day_vecs)
+        current_calories = 0.0
+
+        while remaining and len(selected_idx) < k and current_calories < calories_target:
+            if not selected_idx:
+                best = remaining[int(np.argmax(rel[remaining]))]
+            else:
+                mmr_scores = []
+                for i in remaining:
+                    max_sim_to_selected = np.max(sims[i, selected_idx]) if selected_idx else 0
+                    mmr = alpha * rel[i] - (1 - alpha) * max_sim_to_selected
+                    mmr_scores.append(mmr)
+                best = remaining[int(np.argmax(mmr_scores))]
+
+            selected_idx.append(best)
+            current_calories += df_day.iloc[best]["Calories"]
+            remaining.remove(best)
+            if current_calories >= calories_target:
+                break
+
+        return df_day.iloc[selected_idx].copy()
+
+    # ----------------------------
+    # 5) Generate meal plan for all days
+    # ----------------------------
+    target_food = float(new_user["CaloriesPerDay"].iloc[0] * new_user["GoalDays"].iloc[0])
+
+    plan = []
+    remaining_calories = target_food
+
+    candidates_sorted = candidates.sort_values("meal_score", ascending=False).copy()
+    X_candidates = X_meal[candidates_sorted.index]
+
+    selected_idx = []
+    current_calories = 0.0
+    alpha = 0.75  
+    sims = cosine_similarity(X_candidates, X_candidates)
+    rel = candidates_sorted["meal_score"].to_numpy()
+    rel = (rel - rel.min()) / (rel.max() - rel.min() + 1e-9)
+
+    while current_calories < remaining_calories and len(selected_idx) < len(candidates_sorted):
+        if not selected_idx:
+            best = int(np.argmax(rel))
+        else:
+            mmr_scores = []
+            for i in range(len(candidates_sorted)):
+                if i in selected_idx:
+                    mmr_scores.append(-np.inf)
+                    continue
+                max_sim_to_selected = np.max(sims[i, selected_idx]) if selected_idx else 0
+                mmr = alpha * rel[i] - (1 - alpha) * max_sim_to_selected
+                mmr_scores.append(mmr)
+            best = int(np.argmax(mmr_scores))
+        
+        selected_idx.append(best)
+        current_calories += candidates_sorted.iloc[best]["Calories"]
+
+    final_plan = candidates_sorted.iloc[selected_idx].copy()
+
+    day_names = ["Breakfast", "Lunch", "Dinner", "Snack"]
+    final_plan["Day"] = np.repeat(range(1, new_user["GoalDays"].iloc[0]+1), len(final_plan)//new_user["GoalDays"].iloc[0]+1)[:len(final_plan)]
+    final_plan["day_label"] = [day_names[i % 4] for i in range(len(final_plan))]
+    meal_plan_df = final_plan.copy()
+    cols_show = ["meal_name", "diet_type", "cooking_method", "Calories", "meal_score", "day_label", "Day"]
+    meal_plan_df = meal_plan_df[cols_show]
+    meal_plan_df.to_csv("meal_plan.csv", index=False)
+    print("Plan saved -> meal_plan.csv")
+    return meal_plan_df
+
+
+def generate_workout_plan(new_user: pd.DataFrame) -> pd.DataFrame:
     data = "data/dataset_with_user_features.csv" 
     df = pd.read_csv(data)
     df = create_workout_features(df)
     build_and_train_workout_model(df, new_user)
-    df = predict_workout_score(df, new_user)
-# run_cosine_similarity_workout
+    df = run_cosine_similarity_workout(df, new_user)
+    return df
 
 
+def generate_meal_plan(new_user: pd.DataFrame) -> pd.DataFrame:
+    data = "data/dataset_with_user_features.csv" 
+    df = pd.read_csv(data)
+    df = create_meal_features(df, new_user)
+    build_and_train_meal_model(df, new_user)
+    df = run_cosine_similarity_meal(df, new_user)
+    return df
 
+def check():
+    user = pd.read_csv('data/new_user.csv')
+    meals = pd.read_csv('meal_plan.csv')
+    workouts = pd.read_csv('workout_plan.csv')
+    cal_meal = meals['Calories'].sum()
+    cal_burned = workouts['Calories_Burned'].sum()
+    actual_change = cal_meal - cal_burned
+    target_food = user.CaloriesPerDay.iloc[0] * user.GoalDays.iloc[0] 
+    print('Target meal calories:', target_food, 'Actual:', cal_meal)
+    print('Target workout burned calories:', user.CaloriesToBurnTraining.iloc[0], "Actual:", cal_burned)
+    weight_change = actual_change/7700
+    print(weight_change)
