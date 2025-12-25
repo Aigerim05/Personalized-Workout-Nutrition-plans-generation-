@@ -1,2 +1,2 @@
 Age,Gender,Weight (kg),Height (m),BMI,Experience_Level,Workout_Frequency (days),Daily meals frequency,diet_type,Goal,WeightChange (kg),GoalDays,cluster_id,BMR,PAL,TDEE,CalorieChange,CaloriesToBurnTraining,CaloriesReducedFromFood,CaloriesPerDay,TotalWorkouts,CaloriesPerWorkout
-20,Female,55.0,1.7,19.031141868512112,1,2,2,Balanced,Gain,5.0,20,1,1351.5,1.5499999999999998,2094.825,38500.0,19250.0,19250.0,3057.325,5.714285714285714,3368.75
+33,Female,56.0,1.7,19.377162629757787,2,3,3,Vegetarian,Gain,4.0,31,1,1296.5,1.7249999999999999,2236.4624999999996,30800.0,15400.0,15400.0,2733.236693548387,13.285714285714286,1159.1397849462364

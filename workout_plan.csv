@@ -1,17 +1,21 @@
 Workout_Type,Workout,Name of Exercise,Body Part,Target Muscle Group,Equipment Needed,Sets,Reps,Type of Muscle,Benefit,Calories_Burned,Day
-HIIT,Face pulls,Thrusters,Chest,Calves,Bench or Chair,5,24,Posterior,Builds unilateral leg strength,1556.3,1
-Yoga,Chest flyes,Lateral Raises,Legs,"Glutes, Hamstrings, Core",Box or Platform,5,24,Posterior,Targets obliques and improves core rotation,857.51,1
 Strength,Standing calf raises,Lateral Raises,Forearms,"Lower Back, Glutes",Resistance Band or Cable Machine,5,24,Wrist Extensors,Strengthens lower body,1153.67,1
-Yoga,Dumbbell rows,Lateral Raises,Shoulders,"Upper Chest, Triceps",Resistance Band,5,25,Wrist Extensors,Strengthens core and improves mobility,1306.61,2
+Yoga,Chest flyes,Lateral Raises,Legs,"Glutes, Hamstrings, Core",Box or Platform,5,24,Posterior,Targets obliques and improves core rotation,857.51,1
 Strength,Leg raises,Lateral Raises,Arms,"Upper Chest, Triceps",Resistance Band,5,24,Grip Strength,Targets obliques and improves core rotation,1180.14,2
-Strength,Bird dog,Push-ups,Back,Calves,Dumbbells or Barbell,5,25,Lower Chest,Strengthens back and legs,1268.35,2
 Cardio,Barbell hip thrusts,Lateral Raises,Abs,"Upper Back, Rear Deltoids",Step or Box,5,25,Quads,Improves core stability and upper body strength,1726.4,3
-Strength,Standing calf raises,Dragon Flags,Back,"Upper Back, Rear Deltoids",Box or Platform,5,24,Quads,Improves hip power and cardiovascular fitness,722.04,3
-Strength,Hyperextensions,Glute Bridges,Back,"Rear Deltoids, Upper Back",Bench or Step,5,25,Lateral,Improves balance and leg strength,1258.44,3
 Yoga,Leg curls,Lateral Raises,Arms,Triceps,Wall,5,24,Grip Strength,Targets obliques and improves core rotation,862.56,4
-Cardio,Fat grip dumbbell curl,Flutter Kicks,Arms,"Triceps, Chest",None or Dumbbell,5,25,Lateral,Builds back strength,440.8,4
-Strength,Dumbbell flyes,Plank,Chest,Calves,None or Dumbbells,5,25,Upper,Isolates triceps,1263.74,4
-Strength,Triceps pushdowns,Dragon Flags,Abs,"Legs, Core",Dumbbells,5,25,Lateral,Improves unilateral leg strength and balance,514.33,4
-HIIT,Face pulls,Thrusters,Chest,Calves,Bench or Chair,5,24,Posterior,Builds unilateral leg strength,1556.3,5
-Yoga,Chest flyes,Lateral Raises,Legs,"Glutes, Hamstrings, Core",Box or Platform,5,24,Posterior,Targets obliques and improves core rotation,857.51,5
+Yoga,Bird dog,Lateral Raises,Back,"Core, Obliques",Parallel Bars or Chair,5,25,Lateral,Strengthens lower abs,844.03,4
 Strength,Standing calf raises,Lateral Raises,Forearms,"Lower Back, Glutes",Resistance Band or Cable Machine,5,24,Wrist Extensors,Strengthens lower body,1153.67,5
+Yoga,Chest flyes,Lateral Raises,Legs,"Glutes, Hamstrings, Core",Box or Platform,5,24,Posterior,Targets obliques and improves core rotation,857.51,5
+Strength,Leg raises,Lateral Raises,Arms,"Upper Chest, Triceps",Resistance Band,5,24,Grip Strength,Targets obliques and improves core rotation,1180.14,6
+Cardio,Barbell hip thrusts,Lateral Raises,Abs,"Upper Back, Rear Deltoids",Step or Box,5,25,Quads,Improves core stability and upper body strength,1726.4,7
+Yoga,Leg curls,Lateral Raises,Arms,Triceps,Wall,5,24,Grip Strength,Targets obliques and improves core rotation,862.56,8
+Yoga,Bird dog,Lateral Raises,Back,"Core, Obliques",Parallel Bars or Chair,5,25,Lateral,Strengthens lower abs,844.03,8
+Strength,Standing calf raises,Lateral Raises,Forearms,"Lower Back, Glutes",Resistance Band or Cable Machine,5,24,Wrist Extensors,Strengthens lower body,1153.67,9
+Yoga,Chest flyes,Lateral Raises,Legs,"Glutes, Hamstrings, Core",Box or Platform,5,24,Posterior,Targets obliques and improves core rotation,857.51,9
+Strength,Leg raises,Lateral Raises,Arms,"Upper Chest, Triceps",Resistance Band,5,24,Grip Strength,Targets obliques and improves core rotation,1180.14,10
+Cardio,Barbell hip thrusts,Lateral Raises,Abs,"Upper Back, Rear Deltoids",Step or Box,5,25,Quads,Improves core stability and upper body strength,1726.4,11
+Yoga,Leg curls,Lateral Raises,Arms,Triceps,Wall,5,24,Grip Strength,Targets obliques and improves core rotation,862.56,12
+Yoga,Bird dog,Lateral Raises,Back,"Core, Obliques",Parallel Bars or Chair,5,25,Lateral,Strengthens lower abs,844.03,12
+Strength,Standing calf raises,Lateral Raises,Forearms,"Lower Back, Glutes",Resistance Band or Cable Machine,5,24,Wrist Extensors,Strengthens lower body,1153.67,13
+Yoga,Chest flyes,Lateral Raises,Legs,"Glutes, Hamstrings, Core",Box or Platform,5,24,Posterior,Targets obliques and improves core rotation,857.51,13

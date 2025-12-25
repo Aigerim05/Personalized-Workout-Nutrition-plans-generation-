@@ -126,12 +126,14 @@ def collect_new_user() -> dict:
 
     workout_freq = _ask_int("Workout Frequency (days): ", min_val=0, max_val=7)
     meals_freq = _ask_int("Daily meals frequency: ", min_val=1, max_val=10)
-
-    weight_change = _ask_float(
-        "WeightChange (kg) (enter 5 if you want to lose/gain 5 kg): ",
-        min_val=-200,
-        max_val=200,
-    )
+    if goal_choice == 2:
+        weight_change = 0
+    else:
+        weight_change = _ask_float(
+            "WeightChange (kg) (enter 5 if you want to lose/gain 5 kg): ",
+            min_val=-200,
+            max_val=200,
+        )
     goal_days = _ask_int("GoalDays (days): ", min_val=1, max_val=3650)
 
     bmi = weight_kg / (height_m ** 2)
@@ -280,14 +282,15 @@ def create_user_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
         out["CaloriesPerDay"] = out["TDEE"] - daily_delta
     elif goal == "Gain":
         out["CaloriesPerDay"] = out["TDEE"] + daily_delta
+    else:
+        out["CaloriesPerDay"] = out["TDEE"]
+        out["CaloriesToBurnTraining"] = out["TDEE"] * out["GoalDays"]
 
     out["TotalWorkouts"] = wf * (goal_days / 7.0)
     out["CaloriesPerWorkout"] = (
         out["CaloriesToBurnTraining"] / out["TotalWorkouts"]
         if out["TotalWorkouts"].iloc[0] > 0 else 0.0
     )
-
-
     return out
 
 
@@ -450,14 +453,12 @@ def create_meal_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
     )
 
     out = out.drop(columns=["Calories_Burned", "Workout_Frequency (days)", "cholesterol_g", 
-                            "sodium_g", "sugar_g", "Proteins", "Carbs", "Fats", "Calories", "Daily meals frequency", "Proteins", "serving_size_g"]) # drop these features to avoid data leakage
+                            "sodium_g", "sugar_g", "Calories", "Daily meals frequency", "serving_size_g"]) # drop these features to avoid data leakage
     out = out.drop(columns=["CalorieChange", "CaloriesToBurnTraining", "CaloriesReducedFromFood", "CaloriesPerDay", "CaloriesPerWorkout", 
                             "TotalWorkouts", "pct_p", "pct_c", "pct_f", "BMR", "PAL", "TDEE", "cal_from_protein", "cal_from_carbs", "cal_from_fats"]) # drop these helper features
     out = out.drop(columns=['Sets', 'Reps', 'rating', 'Workout_Type', 'Name of Exercise', 'Benefit',
                             'Target Muscle Group', 'Equipment Needed', 'Body Part', 'Max_BPM', 'Avg_BPM', 'Resting_BPM', 'Session_Duration (hours)',
                             'Type of Muscle', 'Workout', 'Experience_Level', 'Difficulty Level', 'Burns Calories (per 30 min)']) # workout
-    
-    
     return out
 
 
@@ -781,6 +782,44 @@ def save_to_pdf(plan_df, filename="plan.pdf"):
         elements.append(Paragraph("<br/><br/>", styles["Normal"]))
     doc.build(elements)
 
+ALLOWED_PORTIONS = [0.5, 1.0, 1.5, 2.0]
+
+def adjust_portions_per_meal(
+    df: pd.DataFrame,
+    target_calories: float
+) -> pd.DataFrame:
+
+    df = df.copy()
+    df["Portion"] = 1.0
+    df["Calories_Final"] = df["Calories"]
+    df = df.sort_values("Calories", ascending=False).reset_index(drop=True)
+
+    current_total = df["Calories_Final"].sum()
+
+    while current_total < target_calories:
+
+        changed = False
+
+        for i in range(len(df)):
+            current_portion = df.loc[i, "Portion"]
+            if current_portion < 2.0:
+                new_portion = current_portion + 0.5
+
+                if new_portion in ALLOWED_PORTIONS:
+                    delta = df.loc[i, "Calories"] * 0.5
+                    df.loc[i, "Portion"] = new_portion
+                    df.loc[i, "Calories_Final"] += delta
+
+                    current_total += delta
+                    changed = True
+
+                    if current_total >= target_calories:
+                        break
+        if not changed:
+            break
+
+    return df
+
 
 def build_and_train_meal_model(df: pd.DataFrame, user: pd.DataFrame) -> None:
     goal = user['Goal'].iloc[0]
@@ -944,6 +983,9 @@ def predict_meal_score(df: pd.DataFrame, user: pd.DataFrame) -> pd.DataFrame:
     meal_predict["meal_score"] = predictions
 
     meal_predict["Calories"] = df["Cal"].values
+    meal_predict["Proteins"] = df['Proteins'].values
+    meal_predict["Carbs"] = df['Carbs'].values
+    meal_predict["Fats"] = df['Fats'].values
     return meal_predict
 
 
@@ -1040,6 +1082,9 @@ def run_cosine_similarity_meal(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.D
     # 5) Generate meal plan for all days
     # ----------------------------
     target_food = float(new_user["CaloriesPerDay"].iloc[0] * new_user["GoalDays"].iloc[0])
+    goal_days = int(new_user['GoalDays'].iloc[0])
+    target_per_meal = float(new_user['CaloriesPerDay'].iloc[0] / new_user['Daily meals frequency'].iloc[0])
+    meals_per_day = int(new_user["Daily meals frequency"].iloc[0])
 
     plan = []
     remaining_calories = target_food
@@ -1072,12 +1117,34 @@ def run_cosine_similarity_meal(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.D
         current_calories += candidates_sorted.iloc[best]["Calories"]
 
     final_plan = candidates_sorted.iloc[selected_idx].copy()
+    final_plan["Portion"] = 1.0 
 
     day_names = ["Breakfast", "Lunch", "Dinner", "Snack"]
-    final_plan["Day"] = np.repeat(range(1, new_user["GoalDays"].iloc[0]+1), len(final_plan)//new_user["GoalDays"].iloc[0]+1)[:len(final_plan)]
-    final_plan["day_label"] = [day_names[i % 4] for i in range(len(final_plan))]
-    meal_plan_df = final_plan.copy()
-    cols_show = ["meal_name", "diet_type", "cooking_method", "Calories", "meal_score", "day_label", "Day"]
+
+    rows = []
+    idx = 0
+
+    for day in range(1, goal_days + 1):
+        day_meals = final_plan.iloc[idx:idx + meals_per_day].copy()
+
+        if len(day_meals) < meals_per_day:
+            extra = final_plan.iloc[:meals_per_day - len(day_meals)]
+            day_meals = pd.concat([day_meals, extra])
+
+        day_meals["Day"] = day
+        day_meals["day_label"] = day_names[:meals_per_day]
+
+        rows.append(day_meals)
+        idx += meals_per_day
+
+    meal_plan_df = pd.concat(rows, ignore_index=True)
+    meal_plan_df = adjust_portions_per_meal(
+        meal_plan_df,
+        target_calories=target_food
+    )
+
+    meal_plan_df = meal_plan_df.sort_values("Day").reset_index(drop=True)
+    cols_show = ["meal_name", "Calories_Final", "day_label", "Day", "Portion", "Proteins", "Carbs", "Fats"]
     meal_plan_df = meal_plan_df[cols_show]
     meal_plan_df.to_csv("meal_plan.csv", index=False)
     print("Plan saved -> meal_plan.csv")
@@ -1105,7 +1172,7 @@ def check():
     user = pd.read_csv('data/new_user.csv')
     meals = pd.read_csv('meal_plan.csv')
     workouts = pd.read_csv('workout_plan.csv')
-    cal_meal = meals['Calories'].sum()
+    cal_meal = meals['Calories_Final'].sum()
     cal_burned = workouts['Calories_Burned'].sum()
     actual_change = cal_meal - cal_burned
     target_food = user.CaloriesPerDay.iloc[0] * user.GoalDays.iloc[0] 
