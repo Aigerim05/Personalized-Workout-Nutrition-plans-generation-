@@ -618,7 +618,7 @@ def build_and_train_workout_model(df: pd.DataFrame, new_user: pd.DataFrame) -> N
     test_pred = final_model.predict(X_test_enc)
     print(f"[FINAL] Test RMSE: {rmse(y_test, test_pred):.6f}")
 
-    joblib.dump(preprocess, "encoder.pkl")
+    joblib.dump(preprocess, "encoders/workout_encoder.pkl")
     joblib.dump(final_model, "models/workout_model.pkl")
     print("Workout model is trained!")
 
@@ -650,7 +650,7 @@ def predict_workout_score(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFr
         axis=1
     )
 
-    preprocess = joblib.load("encoder.pkl")
+    preprocess = joblib.load("encoders/workout_encoder.pkl")
     final_model = joblib.load("models/workout_model.pkl")
 
     workout_predict_enc = preprocess.transform(workout_predict_cleaned)
@@ -774,7 +774,7 @@ def run_cosine_similarity_workout(df: pd.DataFrame, new_user: pd.DataFrame) -> p
         all_days.append(temp)
 
     plan_df = pd.concat(all_days, ignore_index=True)
-    plan_df.to_csv("workout_plan.csv", index=False)
+    plan_df.to_csv("data/workout_plan.csv", index=False)
     print("Plan saved -> workout_plan.csv")
     return plan_df
 
@@ -1059,7 +1059,7 @@ def build_and_train_meal_model(df: pd.DataFrame, user: pd.DataFrame) -> None:
     test_pred = best_model.predict(X_test_enc)
     test_rmse = np.sqrt(mean_squared_error(y_test, test_pred))
     print(f"Test RMSE: {test_rmse:.6f}")
-    joblib.dump(preprocess, "meal_encoder.pkl")
+    joblib.dump(preprocess, "encoders/meal_encoder.pkl")
     joblib.dump(final_model, "models/meal_model.pkl")
     print("Saved the meal model!")
 
@@ -1080,7 +1080,7 @@ def predict_meal_score(df: pd.DataFrame, user: pd.DataFrame) -> pd.DataFrame:
         [pd.concat([user] * len(meal_df), ignore_index=True), meal_df],
         axis=1
     )
-    preprocess = joblib.load("meal_encoder.pkl")
+    preprocess = joblib.load("encoders/meal_encoder.pkl")
     final_model = joblib.load("models/meal_model.pkl")
 
     meal_predict_enc = preprocess.transform(meal_predict)
@@ -1254,7 +1254,7 @@ def run_cosine_similarity_meal(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.D
     meal_plan_df = meal_plan_df.sort_values("Day").reset_index(drop=True)
     cols_show = ["meal_name", "diet_type", "Calories_Final", "day_label", "Day", "Portion", "Proteins", "Carbs", "Fats"]
     meal_plan_df = meal_plan_df[cols_show]
-    meal_plan_df.to_csv("meal_plan.csv", index=False)
+    meal_plan_df.to_csv("data/meal_plan.csv", index=False)
     print("Plan saved -> meal_plan.csv")
     return meal_plan_df
 
@@ -1278,8 +1278,8 @@ def generate_meal_plan(new_user: pd.DataFrame) -> pd.DataFrame:
 
 def check():
     user = pd.read_csv('data/new_user.csv')
-    meals = pd.read_csv('meal_plan.csv')
-    workouts = pd.read_csv('workout_plan.csv')
+    meals = pd.read_csv('data/meal_plan.csv')
+    workouts = pd.read_csv('data/workout_plan.csv')
     cal_meal = round(meals['Calories_Final'].sum(), 2)
     cal_burned = round(workouts['Calories_Burned'].sum(), 2)
     total_energy_spent = (user["TDEE"].iloc[0] * user["GoalDays"].iloc[0] + cal_burned)
