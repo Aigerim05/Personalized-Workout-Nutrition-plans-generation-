@@ -1,23 +1,13 @@
 Workout_Type,Workout,Name of Exercise,Body Part,Equipment Needed,Sets,Reps,Benefit,Calories_Burned,Day
-HIIT,Crunches,Bird Dogs,Legs,Kettlebell,4,19,Improves coordination and cardiovascular health,1701.38,2
-HIIT,Leg curls,Jumping Jacks,Abs,Pull-up Bar,4,15,Targets abdominal muscles,1691.01,3
-HIIT,Leg extensions,Bench Press,Back,Cable Machine,5,20,Improves shoulder mobility and posture,1692.46,4
-HIIT,Face pulls,Lateral Raises,Legs,Parallel Bars or Chair,5,18,Targets obliques and improves core rotation,1163.71,5
-HIIT,Crunches,Bird Dogs,Legs,Kettlebell,4,19,Improves coordination and cardiovascular health,1701.38,6
-HIIT,Leg curls,Jumping Jacks,Abs,Pull-up Bar,4,15,Targets abdominal muscles,1691.01,7
-HIIT,Leg extensions,Bench Press,Back,Cable Machine,5,20,Improves shoulder mobility and posture,1692.46,8
-HIIT,Face pulls,Lateral Raises,Legs,Parallel Bars or Chair,5,18,Targets obliques and improves core rotation,1163.71,9
-HIIT,Crunches,Bird Dogs,Legs,Kettlebell,4,19,Improves coordination and cardiovascular health,1701.38,10
-HIIT,Leg curls,Jumping Jacks,Abs,Pull-up Bar,4,15,Targets abdominal muscles,1691.01,11
-HIIT,Leg extensions,Bench Press,Back,Cable Machine,5,20,Improves shoulder mobility and posture,1692.46,12
-HIIT,Face pulls,Lateral Raises,Legs,Parallel Bars or Chair,5,18,Targets obliques and improves core rotation,1163.71,13
-HIIT,Crunches,Bird Dogs,Legs,Kettlebell,4,19,Improves coordination and cardiovascular health,1701.38,14
-HIIT,Leg curls,Jumping Jacks,Abs,Pull-up Bar,4,15,Targets abdominal muscles,1691.01,15
-HIIT,Leg extensions,Bench Press,Back,Cable Machine,5,20,Improves shoulder mobility and posture,1692.46,16
-HIIT,Face pulls,Lateral Raises,Legs,Parallel Bars or Chair,5,18,Targets obliques and improves core rotation,1163.71,17
-HIIT,Crunches,Bird Dogs,Legs,Kettlebell,4,19,Improves coordination and cardiovascular health,1701.38,18
-HIIT,Leg curls,Jumping Jacks,Abs,Pull-up Bar,4,15,Targets abdominal muscles,1691.01,19
-HIIT,Leg extensions,Bench Press,Back,Cable Machine,5,20,Improves shoulder mobility and posture,1692.46,20
-HIIT,Face pulls,Lateral Raises,Legs,Parallel Bars or Chair,5,18,Targets obliques and improves core rotation,1163.71,21
-HIIT,Crunches,Bird Dogs,Legs,Kettlebell,4,19,Improves coordination and cardiovascular health,1701.38,22
-HIIT,Leg curls,Jumping Jacks,Abs,Pull-up Bar,4,15,Targets abdominal muscles,1691.01,23
+HIIT,Leg raises,Tricep Extensions,Forearms,Cable Machine,5,18,Improves core rotation strength,1468.09,4
+HIIT,Wrist curl,Calf Raises,Forearms,"Bench, Barbell",4,19,Improves posture and back strength,859.1,4
+HIIT,Fat grip dumbbell curl,Resistance Band Pull-Aparts,Arms,Bench or Sturdy Surface,4,23,Targets obliques and improves core rotation,2506.35,7
+HIIT,Barbell rows,Decline Push-ups,Back,"Bench, Barbell",4,25,Improves core stability and balance,1438.59,10
+HIIT,Decline cable crossovers,Glute Bridges,Back,Resistance Band,4,20,Targets obliques and improves core rotation,1782.0,10
+HIIT,Decline dumbbell press,Decline Push-ups,Chest,Cable Machine or Resistance Band,5,18,Improves unilateral leg strength and balance,2647.54,13
+HIIT,Leg raises,Tricep Extensions,Forearms,Cable Machine,5,18,Improves core rotation strength,1468.09,16
+HIIT,Wrist curl,Calf Raises,Forearms,"Bench, Barbell",4,19,Improves posture and back strength,859.1,16
+HIIT,Fat grip dumbbell curl,Resistance Band Pull-Aparts,Arms,Bench or Sturdy Surface,4,23,Targets obliques and improves core rotation,2506.35,19
+HIIT,Barbell rows,Decline Push-ups,Back,"Bench, Barbell",4,25,Improves core stability and balance,1438.59,22
+HIIT,Decline cable crossovers,Glute Bridges,Back,Resistance Band,4,20,Targets obliques and improves core rotation,1782.0,22
+HIIT,Decline dumbbell press,Decline Push-ups,Chest,Cable Machine or Resistance Band,5,18,Improves unilateral leg strength and balance,2647.54,25

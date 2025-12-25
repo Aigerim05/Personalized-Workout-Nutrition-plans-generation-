@@ -1,2 +1,2 @@
 Age,Gender,Weight (kg),Height (m),BMI,Experience_Level,Workout_Frequency (days),Daily meals frequency,diet_type,Goal,WeightChange (kg),GoalDays,cluster_id,BMR,PAL,TDEE,CalorieChange,CaloriesToBurnTraining,CaloriesReducedFromFood,CaloriesPerDay,TotalWorkouts,CaloriesPerWorkout
-44,Male,89.0,1.7,30.795847750865054,2,4,3,Paleo,Loss,5.0,40,2,1737.5,1.9,3301.25,38500.0,19250.0,19250.0,2820.0,22.857142857142858,842.1875
+22,Female,56.0,1.7,19.377162629757787,1,2,2,Low-Carb,Loss,5.0,31,1,1351.5,1.5499999999999998,2094.825,38500.0,19250.0,19250.0,1473.857258064516,8.857142857142858,2173.3870967741937
