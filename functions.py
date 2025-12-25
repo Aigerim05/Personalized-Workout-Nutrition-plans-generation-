@@ -465,9 +465,13 @@ def create_meal_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
     return out
 
 
+
 def build_and_train_workout_model(df: pd.DataFrame, new_user: pd.DataFrame) -> None:
     goal = new_user['Goal'].iloc[0]
 
+    # -------------------------------
+    # Target construction (allowed)
+    # -------------------------------
     if goal == 'Loss':
         df['target'] = 0.45*df['E'] + 0.25*df['I'] + 0.10*df['D'] + 0.05*df['S'] + 0.15*df['R']
     elif goal == 'Maintain':
@@ -476,15 +480,38 @@ def build_and_train_workout_model(df: pd.DataFrame, new_user: pd.DataFrame) -> N
         df['target'] = 0.05*df['E'] + 0.15*df['I'] + 0.10*df['D'] + 0.50*df['S'] + 0.20*df['R']
     else:
         raise ValueError("Goal must be one of: 'Loss', 'Maintain', 'Gain'")
-    
 
+    # Drop target construction components
     df = df.drop(columns=['E', 'I', 'D', 'S', 'R'])
 
-   
-    X = df.drop(columns=["target"])
-    y = df["target"]
+    # -------------------------------
+    # Feature definitions
+    # -------------------------------
+    numerical_features = [
+        'Weight (kg)', 'Height (m)',
+        'Workout_Frequency (days)', 'Daily meals frequency', 'rating'
+    ]
 
-    # 70% train, 15% val, 15% test
+    categorical_features = [
+        'Gender', 'Workout_Type', 'diet_type', 'Name of Exercise', 'Benefit',
+        'Target Muscle Group', 'Equipment Needed', 'Body Part',
+        'Type of Muscle', 'Workout', 'cluster_id'
+    ]
+
+    selected_features = numerical_features + categorical_features + ['target']
+
+    # -------------------------------
+    # create df_selected
+    # calories_burned is NOT included here
+    # -------------------------------
+    df_selected = df[selected_features].copy()
+
+    X = df_selected.drop(columns=['target'])
+    y = df_selected['target']
+
+    # -------------------------------
+    # Train / Val / Test split
+    # -------------------------------
     X_train, X_temp, y_train, y_temp = train_test_split(
         X, y, test_size=0.30, random_state=42
     )
@@ -492,23 +519,14 @@ def build_and_train_workout_model(df: pd.DataFrame, new_user: pd.DataFrame) -> N
     X_val, X_test, y_val, y_test = train_test_split(
         X_temp, y_temp, test_size=0.50, random_state=42
     )
-  
 
-    numerical_features = [
-    'Weight (kg)', 'Height (m)',
-    'Workout_Frequency (days)', 'Daily meals frequency',
-    'Sets', 'Reps', 'rating'
-    ]
-    categorical_features = [
-        'Gender', 'Workout_Type', 'diet_type', 'Name of Exercise', 'Benefit',
-        'Target Muscle Group', 'Equipment Needed', 'Body Part',
-        'Type of Muscle', 'Workout', 'cluster_id'
-    ]
-        
+    # -------------------------------
+    # Preprocessing
+    # -------------------------------
     preprocess = ColumnTransformer(
-    transformers=[
-        ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features),
-        ("num", "passthrough", numerical_features),
+        transformers=[
+            ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features),
+            ("num", "passthrough", numerical_features),
         ],
         remainder="drop"
     )
@@ -517,13 +535,14 @@ def build_and_train_workout_model(df: pd.DataFrame, new_user: pd.DataFrame) -> N
     X_val_enc   = preprocess.transform(X_val)
     X_test_enc  = preprocess.transform(X_test)
 
-    # Helper function (RMSE)
+    # -------------------------------
+    # Helper
+    # -------------------------------
     def rmse(y_true, y_pred):
         return np.sqrt(mean_squared_error(y_true, y_pred))
-    
 
     # ============================================================
-    # SECTION 3: MODEL WITH TUNED HYPERPARAMETERS (RandomizedSearchCV on TRAIN only)
+    # SECTION 3: TUNED MODEL (RandomizedSearchCV on TRAIN only)
     # ============================================================
     xgb_base = XGBRegressor(
         objective="reg:squarederror",
@@ -554,7 +573,6 @@ def build_and_train_workout_model(df: pd.DataFrame, new_user: pd.DataFrame) -> N
         n_jobs=-1
     )
 
-    # IMPORTANT: Fit on TRAIN only 
     search.fit(X_train_enc, y_train)
 
     best_params = search.best_params_
@@ -563,7 +581,7 @@ def build_and_train_workout_model(df: pd.DataFrame, new_user: pd.DataFrame) -> N
     print("[Tuned HP] Best CV params:", best_params)
     print(f"[Tuned HP] Best CV RMSE: {best_cv_rmse:.6f}")
 
-    # evaluate tuned model on VALIDATION as a holdout check
+    # Validation check
     xgb_tuned_train_only = XGBRegressor(
         **best_params,
         objective="reg:squarederror",
@@ -572,15 +590,12 @@ def build_and_train_workout_model(df: pd.DataFrame, new_user: pd.DataFrame) -> N
     )
     xgb_tuned_train_only.fit(X_train_enc, y_train)
 
-    val_pred_tuned = xgb_tuned_train_only.predict(X_val_enc)
-    val_rmse_tuned = rmse(y_val, val_pred_tuned)
-    print(f"[Tuned HP] Validation RMSE (holdout check): {val_rmse_tuned:.6f}")
+    val_pred = xgb_tuned_train_only.predict(X_val_enc)
+    print(f"[Tuned HP] Validation RMSE: {rmse(y_val, val_pred):.6f}")
 
     # ============================================================
-    # SECTION 4: FINAL MODEL (best tuned hyperparams substituted)
-    # Classical step: train on TRAIN+VAL, then test once
+    # FINAL MODEL: Train on TRAIN + VAL
     # ============================================================
-    # Combine train + val encoded matrices
     if issparse(X_train_enc) or issparse(X_val_enc):
         X_trainval_enc = vstack([X_train_enc, X_val_enc])
     else:
@@ -596,59 +611,63 @@ def build_and_train_workout_model(df: pd.DataFrame, new_user: pd.DataFrame) -> N
     )
     final_model.fit(X_trainval_enc, y_trainval)
 
-    test_pred_final = final_model.predict(X_test_enc)
-    test_rmse_final = rmse(y_test, test_pred_final)
-    print(f"[FINAL] Test RMSE (trained on train+val): {test_rmse_final:.6f}")
+    test_pred = final_model.predict(X_test_enc)
+    print(f"[FINAL] Test RMSE: {rmse(y_test, test_pred):.6f}")
 
     joblib.dump(preprocess, "encoder.pkl")
     joblib.dump(final_model, "models/workout_model.pkl")
     print("Workout model is trained!")
 
 
+
 def predict_workout_score(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFrame:
     new_user = new_user.drop(
-                    columns=['Age', 'Goal', 'WeightChange (kg)', 'GoalDays', 'BMR', 'PAL', 'TDEE', 'CalorieChange', 'CaloriesToBurnTraining', 
+                    columns=['Age', 'Experience_Level', 'Goal', 'WeightChange (kg)', 'GoalDays', 'BMR', 'PAL', 'TDEE', 'CalorieChange', 'CaloriesToBurnTraining',
                         'CaloriesReducedFromFood', 'CaloriesPerDay',  'TotalWorkouts', 'CaloriesPerWorkout']
                 )
-    # Exercise-related features
-    exercise_df = df[
-                        ['Sets', 'Reps', 'rating', 'Workout_Type', 'Name of Exercise', 'Benefit',
-                            'Target Muscle Group', 'Equipment Needed', 'Body Part',
-                            'Type of Muscle', 'Workout' ]
+
+    # Repeat user row to match number of exercises
+    exercise_df_full = df[
+                    ['Sets', 'Reps', 'rating', 'Workout_Type', 'Name of Exercise', 'Benefit',
+                        'Target Muscle Group', 'Equipment Needed', 'Body Part',
+                        'Type of Muscle', 'Workout', 'Calories_Burned']
     ].reset_index(drop=True)
 
-    # Repeat user row to match number of exercises 
-    workout_predict = pd.concat(
-        [pd.concat([new_user] * len(exercise_df), ignore_index=True), exercise_df],
+    exercise_df_cleaned = exercise_df_full.drop(columns=['Sets', 'Reps', 'Calories_Burned'])
+
+    # Repeat user row to match number of exercises
+    workout_predict_cleaned = pd.concat(
+        [pd.concat([new_user] * len(exercise_df_cleaned), ignore_index=True), exercise_df_cleaned],
+        axis=1
+    )
+
+    workout_predict_full = pd.concat(
+        [pd.concat([new_user] * len(exercise_df_full), ignore_index=True), exercise_df_full],
         axis=1
     )
 
     preprocess = joblib.load("encoder.pkl")
     final_model = joblib.load("models/workout_model.pkl")
 
-    # Add predictions as a new column
-    workout_predict_enc = preprocess.transform(workout_predict)
+    workout_predict_enc = preprocess.transform(workout_predict_cleaned)
     predictions = final_model.predict(workout_predict_enc)
+    workout_predict_full["workout_score"] = predictions
 
-    workout_predict = workout_predict.copy()
-    workout_predict["workout_score"] = predictions
-    workout_predict["Calories_Burned"] = df["Calories_Burned"].values
-
-    return workout_predict
+    return workout_predict_full
 
 
 def run_cosine_similarity_workout(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFrame:
-    workout_predict = predict_workout_score(df, new_user)
     user_full = new_user.copy()
+    workout_predict = predict_workout_score(df, new_user)
     new_user = new_user.drop(
-                    columns=['Age', 'Goal', 'WeightChange (kg)', 'GoalDays', 'BMR', 'PAL', 'TDEE', 'CalorieChange', 'CaloriesToBurnTraining', 
+                    columns=['Age', 'Goal', 'WeightChange (kg)', 'GoalDays', 'BMR', 'PAL', 'TDEE', 'CalorieChange', 'CaloriesToBurnTraining',
                         'CaloriesReducedFromFood', 'CaloriesPerDay',  'TotalWorkouts', 'CaloriesPerWorkout', "BMI"]
                 )
     # ----------------------------
     # 1) Candidate generation: Top N
     # ----------------------------
     TOP_N = 100
-    candidates = (workout_predict.sort_values("workout_score", ascending=False).head(TOP_N).reset_index(drop=True).copy()) 
+    candidates = (workout_predict.sort_values("workout_score", ascending=False).head(TOP_N).reset_index(drop=True).copy())
     # ----------------------------
     # 2) Build text for vectorization (classic content-based)
     # ----------------------------
@@ -669,7 +688,7 @@ def run_cosine_similarity_workout(df: pd.DataFrame, new_user: pd.DataFrame) -> p
     vectorizer = TfidfVectorizer(ngram_range=(1, 2), min_df=1, max_features=5000)
     X_ex = vectorizer.fit_transform(exercise_text)
     # ----------------------------
-    # 3) Create "day prototypes" as text -> vector 
+    # 3) Create "day prototypes" as text -> vector
     # ----------------------------
     day_prototypes = {
         "Legs": "legs lower body quads quadriceps hamstrings glutes calves posterior",
@@ -741,7 +760,7 @@ def run_cosine_similarity_workout(df: pd.DataFrame, new_user: pd.DataFrame) -> p
     # 6) Output
     # ----------------------------
     cols_show = ['Workout_Type', 'Workout', 'Name of Exercise', 'Body Part',
-                'Target Muscle Group', 'Equipment Needed', 'Sets', 'Reps', 'Type of Muscle', 'Benefit', 'Calories_Burned']
+                 'Equipment Needed', 'Sets', 'Reps', 'Benefit', 'Calories_Burned']
     all_days = []
     interval = max(1, user_full.GoalDays.iloc[0] // user_full.TotalWorkouts.iloc[0])
     workout_days = list(range(1, int(user_full.GoalDays.iloc[0])+1, int(interval)))
