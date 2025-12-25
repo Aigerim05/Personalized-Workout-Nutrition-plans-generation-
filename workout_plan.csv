@@ -1,17 +1,17 @@
-Workout_Type,Workout,Name of Exercise,Body Part,Target Muscle Group,Equipment Needed,Sets,Reps,Type of Muscle,Benefit,Calories_Burned,Day
-HIIT,Standing calf raises,Bicycle Crunches,Legs,"Back, Hamstrings, Glutes",Dumbbells,5,21,Grip Strength,Strengthens triceps and chest,1586.54,4
-HIIT,Incline cable crossovers,Dragon Flags,Legs,Quadriceps,"Bench, Barbell",5,21,Posterior,Full body workout,1574.43,4
-Strength,Towel pull-up,Zottman Curls,Arms,"Glutes, Hamstrings",Resistance Band or Cable Machine,5,25,Grip Strength,Targets obliques and improves core rotation,1380.1,4
-Cardio,Leg curls,Step-ups,Forearms,Triceps,Dumbbells or Barbell,5,25,Posterior,Builds lower body power and endurance,1216.15,4
-HIIT,Dumbbell flyes,Leg Press,Legs,"Core, Shoulders, Legs",Dumbbells,5,22,Upper,Builds explosive upper body power,2230.8,7
-HIIT,Triceps pushdowns,Leg Press,Forearms,"Shoulders, Triceps",Dumbbells,4,20,Lower Chest,Enhances full-body coordination and stability,1861.2,7
-HIIT,Military press,Tricep Dips,Shoulders,Triceps,"Bench, Barbell",4,22,Triceps,Improves cardiovascular fitness,1798.19,7
-Strength,Seated calf raises,Box Jumps,Abs,"Chest, Triceps, Shoulders",Dumbbells,4,22,Quads,Strengthens triceps and chest,823.19,7
-HIIT,Concentration curls,Glute Bridges,Legs,"Core, Shoulders, Hips","Bench, Barbell",5,25,Lateral,Builds back strength,1502.29,10
-HIIT,Towel pull-up,Pull-ups,Shoulders,"Glutes, Hamstrings",Low Bar or TRX,5,18,Anterior,Improves posture and back strength,1668.28,10
-HIIT,Close-grip bench press,Bird Dogs,Abs,"Biceps, Forearms",Dumbbells or Barbell,4,19,Lower,Improves core stability and balance,1379.4,10
-Cardio,Romanian deadlifts,Push-ups,Forearms,"Back, Biceps","Bench, Barbell",5,24,Lower Chest,Strengthens triceps and chest,730.4,10
-Cardio,Triceps dips,Russian Twists,Legs,"Core, Lower Back",Resistance Band,4,19,Grip Strength,Targets obliques and improves core rotation,1268.35,13
-HIIT,Hyperextensions,Plank,Arms,"Glutes, Hamstrings",Box or Platform,4,15,Grip Strength,Strengthens core and improves mobility,1414.41,13
-HIIT,Decline dumbbell press,Scissors Kicks,Back,"Core, Lower Back",Box or Platform,5,21,Lateral,Improves balance and coordination,1582.22,13
-Yoga,Bird dog,Deadlift,Abs,"Legs, Core",Cable Machine,5,24,Lower,Targets obliques and improves core rotation,951.98,13
+Workout_Type,Workout,Name of Exercise,Body Part,Equipment Needed,Sets,Reps,Benefit,Calories_Burned,Day
+HIIT,Leg raises,Tricep Extensions,Forearms,Cable Machine,5,18,Improves core rotation strength,1468.09,4
+Strength,Dumbbell curls,Windshield Wipers,Chest,Cable Machine or Resistance Band,5,18,Builds lower body power and endurance,1070.17,4
+HIIT,Skull crushers,Bicycle Crunches,Arms,Cable Machine or Resistance Band,5,18,Strengthens triceps and chest,1294.7,7
+HIIT,Fat grip dumbbell curl,Resistance Band Pull-Aparts,Arms,Bench or Sturdy Surface,4,23,Targets obliques and improves core rotation,2506.35,7
+HIIT,Military press,Plyo Squats,Back,Pull-up Bar,5,19,Improves balance and coordination,1730.64,10
+HIIT,Barbell rows,Decline Push-ups,Back,"Bench, Barbell",4,25,Improves core stability and balance,1438.59,10
+HIIT,Leg press,Scissors Kicks,Back,Resistance Band,4,15,Improves balance and coordination,1464.1,13
+HIIT,Face pulls,Jumping Jacks,Legs,Bench or Chair,5,24,Strengthens lower abs,1124.28,13
+HIIT,Leg raises,Tricep Extensions,Forearms,Cable Machine,5,18,Improves core rotation strength,1468.09,16
+Strength,Dumbbell curls,Windshield Wipers,Chest,Cable Machine or Resistance Band,5,18,Builds lower body power and endurance,1070.17,16
+HIIT,Skull crushers,Bicycle Crunches,Arms,Cable Machine or Resistance Band,5,18,Strengthens triceps and chest,1294.7,19
+HIIT,Fat grip dumbbell curl,Resistance Band Pull-Aparts,Arms,Bench or Sturdy Surface,4,23,Targets obliques and improves core rotation,2506.35,19
+HIIT,Military press,Plyo Squats,Back,Pull-up Bar,5,19,Improves balance and coordination,1730.64,22
+HIIT,Barbell rows,Decline Push-ups,Back,"Bench, Barbell",4,25,Improves core stability and balance,1438.59,22
+HIIT,Leg press,Scissors Kicks,Back,Resistance Band,4,15,Improves balance and coordination,1464.1,25
+HIIT,Face pulls,Jumping Jacks,Legs,Bench or Chair,5,24,Strengthens lower abs,1124.28,25

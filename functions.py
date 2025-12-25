@@ -277,6 +277,8 @@ def create_user_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
     out["CalorieChange"] = weight_change_kg * 7700.0
     out["CaloriesToBurnTraining"] = out["CalorieChange"] * 0.5
     out["CaloriesReducedFromFood"] = out["CalorieChange"] * 0.5
+    if goal == "Gain":
+        out["CaloriesReducedFromFood"] = out["CalorieChange"] * 1.5
 
     daily_delta = (out["CaloriesReducedFromFood"] / goal_days) if goal_days > 0 else np.nan
 
@@ -287,13 +289,15 @@ def create_user_features(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.DataFra
         out["CaloriesPerDay"] = out["TDEE"] + daily_delta
     else:
         out["CaloriesPerDay"] = out["TDEE"]
-        out["CaloriesToBurnTraining"] = out["TDEE"] * out["GoalDays"]
+        out["CaloriesToBurnTraining"] = out["TDEE"] * out["GoalDays"] * 0.15
 
     out["TotalWorkouts"] = wf * (goal_days / 7.0)
     out["CaloriesPerWorkout"] = (
         out["CaloriesToBurnTraining"] / out["TotalWorkouts"]
         if out["TotalWorkouts"].iloc[0] > 0 else 0.0
     )
+    if goal == "Gain":
+        out["CaloriesPerDay"] = out["CaloriesPerDay"] + out["CaloriesToBurnTraining"] / out["GoalDays"]
     return out
 
 
@@ -803,7 +807,8 @@ def save_to_pdf(meal_df, workout_df, user_df, filename="plan.pdf"):
 
     cal_meal = round(meal_df['Calories_Final'].sum(), 2)
     cal_burned = round(workout_df['Calories_Burned'].sum(), 2)
-    actual_change = cal_meal - cal_burned
+    total_energy_spent = (user_df["TDEE"].iloc[0] * user_df["GoalDays"].iloc[0] + cal_burned)
+    actual_change = cal_meal - total_energy_spent
     weight_change = round(actual_change / 7700, 2)
     target_food = round(user_df.CaloriesPerDay.iloc[0] * user_df.GoalDays.iloc[0], 2)
 
@@ -889,7 +894,7 @@ def save_to_pdf(meal_df, workout_df, user_df, filename="plan.pdf"):
     doc.build(elements)
 
 
-ALLOWED_PORTIONS = [0.5, 1.0, 1.5, 2.0]
+ALLOWED_PORTIONS = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
 
 def adjust_portions_per_meal(df: pd.DataFrame, target_calories: float) -> pd.DataFrame:
     df = df.copy()
@@ -903,7 +908,7 @@ def adjust_portions_per_meal(df: pd.DataFrame, target_calories: float) -> pd.Dat
         changed = False
         for i in range(len(df)):
             current_portion = df.loc[i, "Portion"]
-            if current_portion < 2.0:
+            if current_portion < 3.0:
                 new_portion = current_portion + 0.5
 
                 if new_portion in ALLOWED_PORTIONS:
@@ -1277,7 +1282,8 @@ def check():
     workouts = pd.read_csv('workout_plan.csv')
     cal_meal = round(meals['Calories_Final'].sum(), 2)
     cal_burned = round(workouts['Calories_Burned'].sum(), 2)
-    actual_change = cal_meal - cal_burned
+    total_energy_spent = (user["TDEE"].iloc[0] * user["GoalDays"].iloc[0] + cal_burned)
+    actual_change = cal_meal - total_energy_spent
     target_food = round(user.CaloriesPerDay.iloc[0] * user.GoalDays.iloc[0], 2) 
     print('Target meal calories:', target_food, 'Actual:', cal_meal)
     print('Target workout burned calories:', round(user.CaloriesToBurnTraining.iloc[0], 2), "Actual:", cal_burned)
