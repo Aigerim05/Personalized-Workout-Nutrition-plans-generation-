@@ -1,21 +1,17 @@
 Workout_Type,Workout,Name of Exercise,Body Part,Target Muscle Group,Equipment Needed,Sets,Reps,Type of Muscle,Benefit,Calories_Burned,Day
-Strength,Standing calf raises,Lateral Raises,Forearms,"Lower Back, Glutes",Resistance Band or Cable Machine,5,24,Wrist Extensors,Strengthens lower body,1153.67,1
-Yoga,Chest flyes,Lateral Raises,Legs,"Glutes, Hamstrings, Core",Box or Platform,5,24,Posterior,Targets obliques and improves core rotation,857.51,1
-Strength,Leg raises,Lateral Raises,Arms,"Upper Chest, Triceps",Resistance Band,5,24,Grip Strength,Targets obliques and improves core rotation,1180.14,2
-Cardio,Barbell hip thrusts,Lateral Raises,Abs,"Upper Back, Rear Deltoids",Step or Box,5,25,Quads,Improves core stability and upper body strength,1726.4,3
-Yoga,Leg curls,Lateral Raises,Arms,Triceps,Wall,5,24,Grip Strength,Targets obliques and improves core rotation,862.56,4
-Yoga,Bird dog,Lateral Raises,Back,"Core, Obliques",Parallel Bars or Chair,5,25,Lateral,Strengthens lower abs,844.03,4
-Strength,Standing calf raises,Lateral Raises,Forearms,"Lower Back, Glutes",Resistance Band or Cable Machine,5,24,Wrist Extensors,Strengthens lower body,1153.67,5
-Yoga,Chest flyes,Lateral Raises,Legs,"Glutes, Hamstrings, Core",Box or Platform,5,24,Posterior,Targets obliques and improves core rotation,857.51,5
-Strength,Leg raises,Lateral Raises,Arms,"Upper Chest, Triceps",Resistance Band,5,24,Grip Strength,Targets obliques and improves core rotation,1180.14,6
-Cardio,Barbell hip thrusts,Lateral Raises,Abs,"Upper Back, Rear Deltoids",Step or Box,5,25,Quads,Improves core stability and upper body strength,1726.4,7
-Yoga,Leg curls,Lateral Raises,Arms,Triceps,Wall,5,24,Grip Strength,Targets obliques and improves core rotation,862.56,8
-Yoga,Bird dog,Lateral Raises,Back,"Core, Obliques",Parallel Bars or Chair,5,25,Lateral,Strengthens lower abs,844.03,8
-Strength,Standing calf raises,Lateral Raises,Forearms,"Lower Back, Glutes",Resistance Band or Cable Machine,5,24,Wrist Extensors,Strengthens lower body,1153.67,9
-Yoga,Chest flyes,Lateral Raises,Legs,"Glutes, Hamstrings, Core",Box or Platform,5,24,Posterior,Targets obliques and improves core rotation,857.51,9
-Strength,Leg raises,Lateral Raises,Arms,"Upper Chest, Triceps",Resistance Band,5,24,Grip Strength,Targets obliques and improves core rotation,1180.14,10
-Cardio,Barbell hip thrusts,Lateral Raises,Abs,"Upper Back, Rear Deltoids",Step or Box,5,25,Quads,Improves core stability and upper body strength,1726.4,11
-Yoga,Leg curls,Lateral Raises,Arms,Triceps,Wall,5,24,Grip Strength,Targets obliques and improves core rotation,862.56,12
-Yoga,Bird dog,Lateral Raises,Back,"Core, Obliques",Parallel Bars or Chair,5,25,Lateral,Strengthens lower abs,844.03,12
-Strength,Standing calf raises,Lateral Raises,Forearms,"Lower Back, Glutes",Resistance Band or Cable Machine,5,24,Wrist Extensors,Strengthens lower body,1153.67,13
-Yoga,Chest flyes,Lateral Raises,Legs,"Glutes, Hamstrings, Core",Box or Platform,5,24,Posterior,Targets obliques and improves core rotation,857.51,13
+HIIT,Crunches,Tricep Dips,Legs,"Quadriceps, Hamstrings, Glutes",Step or Box,5,19,Anterior,Builds unilateral leg strength and balance,1758.53,4
+Cardio,Seated calf raises,Box Jumps,Abs,"Triceps, Chest",Pull-up Bar,5,25,Upper,Combines lower body and upper body strength,1225.42,4
+Cardio,Bent-over rows,Shoulder Press,Legs,"Legs, Shoulders, Core",Bench or Sturdy Surface,5,25,Lower,Improves shoulder mobility and posture,1225.42,4
+HIIT,Military press,Lateral Raises,Legs,"Full Body, Core, Shoulders",None or Dumbbell,5,20,Lateral,Builds explosive upper body power,1345.28,4
+Strength,Lateral raises,Windshield Wipers,Arms,"Shoulders, Triceps",Resistance Band,5,25,Wrist Extensors,Builds back strength,1370.46,7
+Cardio,Seated calf raises,Leg Raises,Legs,"Shoulders, Triceps",Wall,5,19,Wrist Extensors,Targets obliques and improves core rotation,1094.4,7
+HIIT,Dumbbell front raises,Decline Push-ups,Back,"Core, Shoulders, Legs",Step or Box,5,20,Lateral,Improves cardiovascular fitness,1333.2,7
+Strength,Incline dumbbell flyes,Push Ups,Arms,Core,Box or Platform,5,19,Lats,Targets upper chest,1435.2,7
+HIIT,Hyperextensions,Bench Press,Arms,"Back, Biceps",Parallel Bars or Chair,5,19,Lower,Improves core stability and balance,1492.84,10
+HIIT,Face pulls,Leg Raises,Chest,"Glutes, Hamstrings, Core",Bench or Sturdy Surface,5,24,Upper,Improves posture and strengthens upper back,1379.4,10
+HIIT,Hammer curl,Plyo Squats,Legs,Shoulders,Cable Machine,4,25,Lats,Improves balance and coordination,1470.76,10
+HIIT,Dumbbell flyes,Leg Press,Back,"Lower Back, Glutes",Resistance Band or Cable Machine,5,21,Triceps,Improves shoulder mobility and posture,1659.21,10
+Strength,Towel pull-up,Zottman Curls,Arms,"Glutes, Hamstrings",Resistance Band or Cable Machine,5,25,Grip Strength,Targets obliques and improves core rotation,1380.1,13
+HIIT,Bird dog,Flutter Kicks,Back,"Triceps, Chest",Dumbbells or Barbell,5,20,Lower Chest,Enhances full-body coordination and stability,1806.89,13
+HIIT,Military press,Zottman Curls,Arms,"Legs, Shoulders, Core",None or Dumbbells,5,20,Wrist Flexors,Targets obliques and improves core rotation,689.7,13
+Cardio,Hyperextensions,Renegade Rows,Shoulders,"Core, Obliques",Step or Box,5,20,Triceps,Strengthens lower body,1311.91,13

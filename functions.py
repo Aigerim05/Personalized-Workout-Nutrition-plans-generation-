@@ -16,10 +16,13 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.sparse import vstack, issparse
 
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Table, TableStyle
+)
 from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import cm
 
 GENDER_MAP = {1: "Female", 2: "Male"}
 
@@ -740,10 +743,11 @@ def run_cosine_similarity_workout(df: pd.DataFrame, new_user: pd.DataFrame) -> p
     cols_show = ['Workout_Type', 'Workout', 'Name of Exercise', 'Body Part',
                 'Target Muscle Group', 'Equipment Needed', 'Sets', 'Reps', 'Type of Muscle', 'Benefit', 'Calories_Burned']
     all_days = []
-
+    interval = max(1, user_full.GoalDays.iloc[0] // user_full.TotalWorkouts.iloc[0])
+    workout_days = list(range(1, int(user_full.GoalDays.iloc[0])+1, int(interval)))
     for i, (day_label, day_plan) in enumerate(plan, start=1):
         temp = day_plan[cols_show].copy()
-        temp["Day"] = i
+        temp["Day"] = workout_days[i]
         all_days.append(temp)
 
     plan_df = pd.concat(all_days, ignore_index=True)
@@ -752,7 +756,9 @@ def run_cosine_similarity_workout(df: pd.DataFrame, new_user: pd.DataFrame) -> p
     return plan_df
 
 
-def save_to_pdf(plan_df, filename="plan.pdf"):
+def save_to_pdf(meal_df, workout_df, user_df, filename="plan.pdf"):
+    meal_df['Calories_Final'] = meal_df['Calories_Final'].round(2)
+    workout_df['Calories_Burned'] = workout_df['Calories_Burned'].round(2)
     doc = SimpleDocTemplate(
         filename,
         pagesize=landscape(A4),
@@ -761,34 +767,112 @@ def save_to_pdf(plan_df, filename="plan.pdf"):
         topMargin=20,
         bottomMargin=20
     )
+
     styles = getSampleStyleSheet()
     elements = []
-    for day in plan_df["Day"].unique():
-        day_df = plan_df[plan_df["Day"] == day]
-        elements.append(Paragraph(f"<b>{day}</b>", styles["Heading2"]))
-        table_data = [day_df.columns.tolist()] + day_df.values.tolist()
+    # USER
+    user_info = f"""
+    <b>User Info:</b><br/>
+    Age: {user_df['Age'].iloc[0]}<br/>
+    Gender: {user_df['Gender'].iloc[0]}<br/>
+    Weight (kg): {user_df['Weight (kg)'].iloc[0]}<br/>
+    Height (m): {user_df['Height (m)'].iloc[0]}<br/>
+    BMI: {round(user_df['BMI'].iloc[0], 2)}<br/>
+    Goal: {user_df['Goal'].iloc[0]}<br/>
+    Target weight change (kg): {user_df['WeightChange (kg)'].iloc[0]}<br/>
+    """
 
-        table = Table(table_data, repeatRows=1)
-        table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.lightblue),
-            ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-            ("FONT", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 7), 
-            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ]))
-        elements.append(table)
+    cal_meal = round(meal_df['Calories_Final'].sum(), 2)
+    cal_burned = round(workout_df['Calories_Burned'].sum(), 2)
+    actual_change = cal_meal - cal_burned
+    weight_change = round(actual_change / 7700, 2)
+    target_food = round(user_df.CaloriesPerDay.iloc[0] * user_df.GoalDays.iloc[0], 2)
+
+    summary_text = f"""
+    <b>Summary:</b><br/>
+    Target meal calories: {target_food} | Actual: {cal_meal}<br/>
+    Target workout burned calories: {round(user_df.CaloriesToBurnTraining.iloc[0], 2)} | Actual: {cal_burned}<br/>
+    Target weight change (kg): {user_df['WeightChange (kg)'].iloc[0]} | Actual: {weight_change}<br/>
+    """
+
+    elements.append(Paragraph(user_info, styles["Normal"]))
+    elements.append(Paragraph("<br/>", styles["Normal"]))
+    elements.append(Paragraph(summary_text, styles["Normal"]))
+    elements.append(Paragraph("<br/><br/>", styles["Normal"]))
+
+
+    all_days = sorted(set(meal_df["Day"]).union(set(workout_df["Day"])))
+
+    for day in all_days:
+        # DAY
+        elements.append(Paragraph(f"<b>Day {day}</b>", styles["Heading2"]))
+
+        day_meals = meal_df[meal_df["Day"] == day]
+        day_workouts = workout_df[workout_df["Day"] == day]
+
+        # FOOD
+        if not day_meals.empty:
+            meal_table_data = [day_meals.columns.tolist()] + day_meals.values.tolist()
+
+            # --- Рассчет ширин колонок с масштабированием под страницу ---
+            col_widths = []
+            for col in day_meals.columns:
+                max_len = max(day_meals[col].astype(str).apply(len).max(), len(col))
+                col_widths.append(max_len * 0.4 * cm)
+
+            total_width = sum(col_widths)
+            if total_width > doc.width:
+                scale = doc.width / total_width
+                col_widths = [w * scale for w in col_widths]
+
+            meal_table = Table(meal_table_data, repeatRows=1, colWidths=col_widths)
+            meal_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightblue),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                ("FONT", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 7),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+            ]))
+            elements.append(meal_table)
+        else:
+            elements.append(Paragraph("No meals", styles["Normal"]))
+        elements.append(Paragraph("<br/>", styles["Normal"]))
+
+        # WORKOUTS
+        if not day_workouts.empty:
+            elements.append(Paragraph("<br/><br/>", styles["Normal"]))
+            workout_table_data = [day_workouts.columns.tolist()] + day_workouts.values.tolist()
+
+            # --- Рассчет ширин колонок с масштабированием под страницу ---
+            col_widths = []
+            for col in day_workouts.columns:
+                max_len = max(day_workouts[col].astype(str).apply(len).max(), len(col))
+                col_widths.append(max_len * 0.4 * cm)
+
+            total_width = sum(col_widths)
+            if total_width > doc.width:
+                scale = doc.width / total_width
+                col_widths = [w * scale for w in col_widths]
+
+            workout_table = Table(workout_table_data, repeatRows=1, colWidths=col_widths)
+            workout_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgreen),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                ("FONT", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 7),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+            ]))
+            elements.append(workout_table)
+        else:
+            elements.append(Paragraph("No workouts", styles["Normal"]))
         elements.append(Paragraph("<br/><br/>", styles["Normal"]))
+
     doc.build(elements)
+
 
 ALLOWED_PORTIONS = [0.5, 1.0, 1.5, 2.0]
 
-def adjust_portions_per_meal(
-    df: pd.DataFrame,
-    target_calories: float
-) -> pd.DataFrame:
-
+def adjust_portions_per_meal(df: pd.DataFrame, target_calories: float) -> pd.DataFrame:
     df = df.copy()
     df["Portion"] = 1.0
     df["Calories_Final"] = df["Calories"]
@@ -797,9 +881,7 @@ def adjust_portions_per_meal(
     current_total = df["Calories_Final"].sum()
 
     while current_total < target_calories:
-
         changed = False
-
         for i in range(len(df)):
             current_portion = df.loc[i, "Portion"]
             if current_portion < 2.0:
@@ -998,6 +1080,7 @@ def run_cosine_similarity_meal(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.D
     TOP_N = 100
     candidates = (
         meal_predict
+        [meal_predict["diet_type"] == new_user['diet_type'].iloc[0]]
         .sort_values("meal_score", ascending=False)
         .head(TOP_N)
         .reset_index(drop=True)
@@ -1117,7 +1200,8 @@ def run_cosine_similarity_meal(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.D
         current_calories += candidates_sorted.iloc[best]["Calories"]
 
     final_plan = candidates_sorted.iloc[selected_idx].copy()
-    final_plan["Portion"] = 1.0 
+    final_plan["Portion"] = 0.5
+    final_plan["Calories"] = final_plan["Calories"]/2
 
     day_names = ["Breakfast", "Lunch", "Dinner", "Snack"]
 
@@ -1144,7 +1228,7 @@ def run_cosine_similarity_meal(df: pd.DataFrame, new_user: pd.DataFrame) -> pd.D
     )
 
     meal_plan_df = meal_plan_df.sort_values("Day").reset_index(drop=True)
-    cols_show = ["meal_name", "Calories_Final", "day_label", "Day", "Portion", "Proteins", "Carbs", "Fats"]
+    cols_show = ["meal_name", "diet_type", "Calories_Final", "day_label", "Day", "Portion", "Proteins", "Carbs", "Fats"]
     meal_plan_df = meal_plan_df[cols_show]
     meal_plan_df.to_csv("meal_plan.csv", index=False)
     print("Plan saved -> meal_plan.csv")
@@ -1172,11 +1256,11 @@ def check():
     user = pd.read_csv('data/new_user.csv')
     meals = pd.read_csv('meal_plan.csv')
     workouts = pd.read_csv('workout_plan.csv')
-    cal_meal = meals['Calories_Final'].sum()
-    cal_burned = workouts['Calories_Burned'].sum()
+    cal_meal = round(meals['Calories_Final'].sum(), 2)
+    cal_burned = round(workouts['Calories_Burned'].sum(), 2)
     actual_change = cal_meal - cal_burned
-    target_food = user.CaloriesPerDay.iloc[0] * user.GoalDays.iloc[0] 
+    target_food = round(user.CaloriesPerDay.iloc[0] * user.GoalDays.iloc[0], 2) 
     print('Target meal calories:', target_food, 'Actual:', cal_meal)
-    print('Target workout burned calories:', user.CaloriesToBurnTraining.iloc[0], "Actual:", cal_burned)
-    weight_change = actual_change/7700
-    print(weight_change)
+    print('Target workout burned calories:', round(user.CaloriesToBurnTraining.iloc[0], 2), "Actual:", cal_burned)
+    weight_change = round(actual_change/7700, 2)
+    print('Target weight change:', user['WeightChange (kg)'].iloc[0], 'Actual:', weight_change)
