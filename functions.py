@@ -307,7 +307,7 @@ def create_workout_features(df: pd.DataFrame) -> pd.DataFrame:
     E - Energy Consumption
     I - Intensity
     S - Power component
-    D - Duration (РЅРѕСЂРјРёСЂРѕРІР°РЅРЅР°СЏ)
+    D - Duration
     R - Risk (1 - penalties)
     """
     out = df.copy()
